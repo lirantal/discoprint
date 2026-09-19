@@ -1,6 +1,6 @@
 import { bold, clamp, colorsEnabled, dim, fg, moodGradientHex } from "./colors.js";
 import { resample, type AlbumGroup, type VisualizationData } from "./data.js";
-import { themeColor } from "./theme-palette.js";
+import { THEME_PALETTE, themeColor } from "./theme-palette.js";
 import type { SongClassification } from "../types.js";
 
 export interface TerminalRenderOptions {
@@ -27,7 +27,6 @@ export function renderTerminal(data: VisualizationData, options: TerminalRenderO
   lines.push(renderHeader(data, colorEnabled));
   lines.push("");
   lines.push(renderMoodArc(data, width, colorEnabled));
-  lines.push(renderMoodScale(colorEnabled));
   lines.push("");
   lines.push(...renderLegend(data, width, colorEnabled));
   const distributionBar = renderThemeDistributionBar(data, width, colorEnabled);
@@ -72,9 +71,12 @@ function renderMoodArc(data: VisualizationData, width: number, colorEnabled: boo
   const label = "mood arc  ";
   if (data.songs.length === 0) return dim(`${label}(no data)`, colorEnabled);
 
+  const gap = "   ";
+  const scale = renderMoodScale(colorEnabled);
+  const reserved = label.length + gap.length + visibleLength(scale);
   const series = resample(
     data.songs.map((s) => s.mood),
-    Math.max(1, width - label.length),
+    Math.max(1, width - reserved),
   );
 
   const arc = series
@@ -85,26 +87,29 @@ function renderMoodArc(data: VisualizationData, width: number, colorEnabled: boo
     })
     .join("");
 
-  return `${dim(label, colorEnabled)}${arc}`;
+  return `${dim(label, colorEnabled)}${arc}${gap}${scale}`;
 }
 
-/** A tiny key for the mood arc's red->yellow->green gradient, indented to sit under it. */
+/** A key for the mood gradient, reusing the arc's own character ramp so "how to read this" is unmistakable. */
 function renderMoodScale(colorEnabled: boolean): string {
-  const swatch = (hex: string) => fg("██", hex, colorEnabled);
-  return `${" ".repeat(10)}${swatch("#ef4444")} ${dim("sad", colorEnabled)}   ${swatch("#eab308")} ${dim("neutral", colorEnabled)}   ${swatch("#22c55e")} ${dim("upbeat", colorEnabled)}`;
+  const steps = SPARK_CHARS.slice(1).split(""); // drop the blank "zero" entry
+  const ramp = steps.map((char, i) => fg(char, moodGradientHex(i / (steps.length - 1)), colorEnabled)).join("");
+  return `${dim("sad", colorEnabled)} ${ramp} ${dim("upbeat", colorEnabled)}`;
 }
 
 function renderLegend(data: VisualizationData, width: number, colorEnabled: boolean): string[] {
   if (data.themeDistribution.length === 0) return [];
 
-  // Matches "theme mix " below in width, so both lines' content starts at the same column.
-  const label = "themes    ";
-  const indent = " ".repeat(label.length);
-  const available = Math.max(20, width - label.length);
+  // Jev can classify into 8 possible themes (see src/jev.ts); only the ones that
+  // actually occur are shown here, so make that "N of 8" distinction explicit.
+  const totalPossibleThemes = Object.keys(THEME_PALETTE).length;
+  const label = `themes (${data.themeDistribution.length}/${totalPossibleThemes})  `;
+  const indent = " ".repeat(visibleLength(label));
+  const available = Math.max(20, width - visibleLength(label));
 
-  const chips = data.themeDistribution.map(({ theme }) => {
+  const chips = data.themeDistribution.map(({ theme, percentage }) => {
     const { hex, label: themeLabel } = themeColor(theme);
-    return `${fg("██", hex, colorEnabled)} ${dim(themeLabel, colorEnabled)}`;
+    return `${fg("██", hex, colorEnabled)} ${dim(`${themeLabel} ${Math.round(percentage)}%`, colorEnabled)}`;
   });
 
   const rows: string[] = [];
@@ -171,7 +176,7 @@ function renderSongTableHeader(width: number, colorEnabled: boolean): string {
   const blankYear = "    ";
   const titleLabel = "song".padEnd(songTitleWidth(width));
   const moodLabel = "mood".padEnd(MOOD_BAR_WIDTH);
-  return dim(`${blankSwatch} ${blankYear} ${titleLabel} ${moodLabel} cplx`, colorEnabled);
+  return dim(`${blankSwatch} ${blankYear} ${titleLabel} ${moodLabel} complexity (░ simple → █ dense)`, colorEnabled);
 }
 
 function renderSongRow(song: SongClassification, width: number, colorEnabled: boolean): string {
@@ -198,7 +203,7 @@ function renderAlbumTableHeader(width: number, colorEnabled: boolean): string {
   const titleLabel = "album".padEnd(albumTitleWidth(width));
   const stripLabel = "songs →".padEnd(ALBUM_STRIP_WIDTH);
   const moodLabel = "mood".padEnd(MOOD_BAR_WIDTH);
-  return dim(`${blankYear} ${titleLabel} ${stripLabel} ${moodLabel} cplx`, colorEnabled);
+  return dim(`${blankYear} ${titleLabel} ${stripLabel} ${moodLabel} complexity (░ simple → █ dense)`, colorEnabled);
 }
 
 function renderAlbumRow(album: AlbumGroup, width: number, colorEnabled: boolean): string {

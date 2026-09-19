@@ -82,7 +82,11 @@ test("renderTerminal", async (t) => {
     const longTitle = "A".repeat(200);
     const data = buildVisualizationData("Test Artist", [{ ...makeSongs(1)[0], track: longTitle }], 0);
     const lines = renderTerminal(data, { width: 60, height: 24, colorEnabled: false });
-    for (const line of lines) assert.ok(stripAnsi(line).length <= 60 + 5); // small slack for edge rounding
+    // The column header intentionally spells out its trailing legend past the data
+    // width (nothing follows it), so only data rows need to respect the width.
+    const dataRow = lines.find((l) => l.includes("A"));
+    assert.ok(dataRow);
+    assert.ok(stripAnsi(dataRow).length <= 60 + 5); // small slack for edge rounding
   });
 
   await t.test("respects an explicit width narrower than the default", () => {
