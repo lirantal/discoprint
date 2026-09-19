@@ -95,4 +95,29 @@ test("renderTerminal", async (t) => {
     const narrow = renderTerminal(data, { width: 50, height: 24, colorEnabled: false });
     assert.notDeepEqual(wide, narrow);
   });
+
+  await t.test("the theme legend and the theme-mix bar start their content at the same column (regression)", () => {
+    // A real bug: the legend label grew ("themes (3/8)") while "theme mix"
+    // stayed fixed-width, so the color chips and the bar below them no
+    // longer lined up vertically.
+    const data = buildVisualizationData("Test Artist", makeSongs(5), 0);
+    const lines = renderTerminal(data, { width: 80, height: 24, colorEnabled: false });
+    const legendLine = lines.find((l) => l.startsWith("themes ("));
+    const mixLine = lines.find((l) => l.startsWith("theme mix"));
+    assert.ok(legendLine);
+    assert.ok(mixLine);
+    assert.equal(legendLine.indexOf("██"), mixLine.indexOf("█"));
+  });
+
+  await t.test("the mood arc renders a visible mark even for the saddest possible songs (regression)", () => {
+    // A real bug: the sparkline's lowest level used to be a literal space, so
+    // mood=0 songs (an artist's saddest material) rendered as invisible gaps
+    // instead of a visible mark.
+    const allSad = makeSongs(5).map((s) => ({ ...s, mood: 0 }));
+    const data = buildVisualizationData("Sad Artist", allSad, 0);
+    const lines = renderTerminal(data, { width: 80, height: 24, colorEnabled: false });
+    const arcLine = lines.find((l) => l.startsWith("mood arc"));
+    assert.ok(arcLine);
+    assert.doesNotMatch(arcLine.slice("mood arc  ".length, "mood arc  ".length + 5), /^ +$/);
+  });
 });

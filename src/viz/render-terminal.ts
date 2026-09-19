@@ -11,11 +11,18 @@ export interface TerminalRenderOptions {
   colorEnabled?: boolean;
 }
 
-const SPARK_CHARS = " ▁▂▃▄▅▆▇█";
+// No leading blank/space level: even the saddest song (mood 0) should render
+// as a visible mark, not invisible whitespace.
+const SPARK_CHARS = "▁▂▃▄▅▆▇█";
 const EIGHTHS = " ▏▎▍▌▋▊▉█";
 const COMPLEXITY_GLYPHS = ["░", "▒", "▓", "█"];
 const MOOD_MAX = 4;
 const MOOD_BAR_WIDTH = 6;
+
+const TOTAL_POSSIBLE_THEMES = Object.keys(THEME_PALETTE).length;
+// So the "themes" legend and the "theme mix" bar below it start their content
+// at the same column, regardless of how many themes appear (see `N` in "(N/8)").
+const LEGEND_LABEL_WIDTH = Math.max("theme mix".length, `themes (${TOTAL_POSSIBLE_THEMES}/${TOTAL_POSSIBLE_THEMES})`.length) + 1;
 
 /** Renders a shaped VisualizationData into printable lines. Pure — no I/O, no process.stdout access. */
 export function renderTerminal(data: VisualizationData, options: TerminalRenderOptions = {}): string[] {
@@ -92,7 +99,7 @@ function renderMoodArc(data: VisualizationData, width: number, colorEnabled: boo
 
 /** A key for the mood gradient, reusing the arc's own character ramp so "how to read this" is unmistakable. */
 function renderMoodScale(colorEnabled: boolean): string {
-  const steps = SPARK_CHARS.slice(1).split(""); // drop the blank "zero" entry
+  const steps = SPARK_CHARS.split("");
   const ramp = steps.map((char, i) => fg(char, moodGradientHex(i / (steps.length - 1)), colorEnabled)).join("");
   return `${dim("sad", colorEnabled)} ${ramp} ${dim("upbeat", colorEnabled)}`;
 }
@@ -102,8 +109,7 @@ function renderLegend(data: VisualizationData, width: number, colorEnabled: bool
 
   // Jev can classify into 8 possible themes (see src/jev.ts); only the ones that
   // actually occur are shown here, so make that "N of 8" distinction explicit.
-  const totalPossibleThemes = Object.keys(THEME_PALETTE).length;
-  const label = `themes (${data.themeDistribution.length}/${totalPossibleThemes})  `;
+  const label = `themes (${data.themeDistribution.length}/${TOTAL_POSSIBLE_THEMES})`.padEnd(LEGEND_LABEL_WIDTH);
   const indent = " ".repeat(visibleLength(label));
   const available = Math.max(20, width - visibleLength(label));
 
@@ -143,7 +149,7 @@ function renderThemeDistributionBar(data: VisualizationData, width: number, colo
   if (segments.length > 0) segments[0].width = Math.max(1, segments[0].width + drift);
 
   const bar = segments.map((s) => fg("█".repeat(s.width), s.hex, colorEnabled)).join("");
-  return `${dim("theme mix ", colorEnabled)}${bar}`;
+  return `${dim("theme mix".padEnd(LEGEND_LABEL_WIDTH), colorEnabled)}${bar}`;
 }
 
 function renderBar(value: number, max: number, width: number, colorHex: string, colorEnabled: boolean): string {
