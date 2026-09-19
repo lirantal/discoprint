@@ -1,8 +1,55 @@
-# artist-lyrics-classifier
+<!-- markdownlint-disable -->
 
-Classify an artist's entire discography by theme, mood, lyrical complexity and a
-couple of content flags — using [Jev](https://docs.typesafe.ai/introduction)
-(TypeSafe's structured-decision model) instead of an LLM you'd have to parse.
+<p align="center">
+  <h1 align="center">
+    discoprint
+  </h1>
+</p>
+
+<p align="center">
+  Classify an artist's discography by theme, mood, and lyrical complexity with Jev (TypeSafe AI), and view it as a colorful terminal dashboard.
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/discoprint"><img src="https://badgen.net/npm/v/discoprint" alt="npm version"/></a>
+  <a href="https://www.npmjs.com/package/discoprint"><img src="https://badgen.net/npm/license/discoprint" alt="license"/></a>
+  <a href="https://www.npmjs.com/package/discoprint"><img src="https://badgen.net/npm/dt/discoprint" alt="downloads"/></a>
+  <a href="https://github.com/lirantal/discoprint/actions/workflows/ci.yml"><img src="https://github.com/lirantal/discoprint/actions/workflows/ci.yml/badge.svg?branch=main" alt="build"/></a>
+  <a href="https://app.codecov.io/gh/lirantal/discoprint"><img src="https://badgen.net/codecov/c/github/lirantal/discoprint" alt="codecov"/></a>
+  <a href="./SECURITY.md"><img src="https://img.shields.io/badge/Security-Responsible%20Disclosure-yellow.svg" alt="Responsible Disclosure Policy" /></a>
+</p>
+
+## Install
+
+```sh
+npm install -g discoprint
+```
+
+Or run it without installing:
+
+```sh
+npx discoprint "Bon Jovi"
+```
+
+## Usage: CLI
+
+```bash
+# classify an artist's discography, then immediately show the dashboard
+discoprint "Bon Jovi"
+
+# no artist given, in a real terminal -> prompts for artist + song limit
+discoprint
+
+# classify only, skip the auto-visualization (useful for scripting)
+discoprint "Bon Jovi" --no-visualize
+
+# re-render the dashboard from already-classified data, no network calls
+discoprint visualize "Bon Jovi"
+```
+
+Flags for the classify path: `--limit N` (default 100 when prompted interactively,
+unbounded otherwise), `--include-non-albums` (include singles/live albums/compilations,
+default is albums + EPs only), `--force` (re-classify ignoring cached results).
 
 ## How it works
 
@@ -42,18 +89,20 @@ recorded alongside each value as `themeConfidence`, `moodConfidence` and
 ## Visualizing results
 
 ```bash
-npm run visualize -- "Bon Jovi"   # reads data/output/<artist-slug>.json
-npm run visualize                 # no artist given -> interactive prompt
+discoprint visualize "Bon Jovi"   # reads data/output/<artist-slug>.json
+discoprint visualize              # no artist given -> interactive prompt
 ```
 
 Renders a small terminal dashboard from already-classified data (no network
-calls, no API key needed):
+calls, no API key needed) — and `discoprint "Artist"` (no subcommand) shows it
+automatically right after classifying:
 
 - **header** — song/skipped counts and release-date range
 - **mood arc** — one line, whole discography, chronological: a colored
-  sparkline (red → yellow → green) of `mood` over time
-- **theme legend + mix bar** — which themes appear, and their proportion
-  across the discography
+  sparkline (red → yellow → green) of `mood` over time, with a key using the
+  same character ramp so the gradient is self-explanatory
+- **theme legend + mix bar** — which themes appear (out of the 8 possible),
+  their exact share, and the same proportions as a stacked bar
 - **heatmap** — adaptive to your terminal size instead of a fixed layout:
   - fits in the terminal → **one row per song**: a theme-colored swatch, the
     title, a mood bar, and a complexity glyph
@@ -76,10 +125,13 @@ and [src/viz/colors.ts](src/viz/colors.ts) (hex colors, gradient interpolation)
 are renderer-independent too, so an HTML version would reuse the same palette
 and just emit CSS instead of ANSI escapes.
 
-## Setup
+## Local development setup
 
 ```bash
+git clone https://github.com/lirantal/discoprint.git
+cd discoprint
 npm install
+npm run prepare   # sets up git hooks; skipped automatically by `ignore-scripts` in .npmrc
 ```
 
 Env vars are managed with [Varlock](https://varlock.dev): [.env.schema](.env.schema) declares
@@ -98,29 +150,16 @@ TYPESAFE_API_KEY=sk-...
 TYPESAFE_API_KEY=op(op://Personal/typesafe/api_key)
 ```
 
-Run `varlock load` any time to check what resolves without running the whole pipeline.
+Run `npx varlock load` any time to check what resolves without running the whole pipeline.
 
 Before real use, edit the `USER_AGENT` string in [src/musicbrainz.ts](src/musicbrainz.ts)
 to include your own contact info/repo URL — MusicBrainz requires this.
 
-## Usage
+Run the CLI from source without building:
 
 ```bash
-# interactive: run with no args in a terminal and it'll ask for the artist,
-# then a song limit (defaults to 100 if you just hit enter)
-npm run classify
-
-# non-interactive: pass the artist directly (limit is unbounded unless given)
-npm run classify -- "Radiohead" --limit 10
-
-# full discography
-npm run classify -- "Radiohead"
-
-# include singles/live albums/compilations too (default: albums + EPs only)
-npm run classify -- "Radiohead" --include-non-albums
-
-# re-classify ignoring cached results
-npm run classify -- "Radiohead" --force
+npm run classify -- "Radiohead" --limit 10   # alias for: tsx src/bin/cli.ts
+npm run visualize -- "Bon Jovi"              # alias for: tsx src/bin/cli.ts visualize
 ```
 
 The interactive prompt (in the look & feel of
@@ -169,8 +208,9 @@ npm run test:coverage # same, plus a line/branch/function coverage report
 - [src/viz/render-terminal.test.ts](src/viz/render-terminal.test.ts) — adaptive per-song/per-album view selection, column alignment, and edge cases (0 songs, 1 song, very long titles)
 
 `test:coverage` writes an LCOV report to `coverage/lcov.info` (gitignored) — pipe it into
-your editor's coverage gutters or `genhtml` for an HTML view. `src/index.ts` (the argv-parsing
-CLI shell) is excluded since it's a thin wrapper with no logic worth mocking `process.exit` for.
+your editor's coverage gutters or `genhtml` for an HTML view. `src/bin/cli.ts` and
+`src/main.ts` (the CLI shell and the library re-export surface) are excluded since
+they're thin wrappers with no logic worth mocking `process.exit` for.
 
 ## Notes / limitations
 
@@ -187,3 +227,11 @@ CLI shell) is excluded since it's a thin wrapper with no logic worth mocking `pr
   usually from other traffic sharing your egress IP (common on shared/cloud
   dev environments). [src/musicbrainz.ts](src/musicbrainz.ts) retries a `503`
   with exponential backoff (5 attempts by default) before giving up.
+
+## Contributing
+
+Please consult [CONTRIBUTING](./CONTRIBUTING.md) for guidelines on contributing to this project.
+
+## Author
+
+**discoprint** © [Liran Tal](https://github.com/lirantal), Released under the [Apache-2.0](./LICENSE) License.

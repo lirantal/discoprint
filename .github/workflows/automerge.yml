@@ -15,7 +15,7 @@ on:
       - completed
   status: {}
 
-permissions: {}   # deny-all at workflow level; each job declares only what it needs
+permissions: {} # deny-all at workflow level; each job declares only what it needs
 
 jobs:
   automerge:

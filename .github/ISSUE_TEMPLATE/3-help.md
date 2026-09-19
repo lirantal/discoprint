@@ -1,5 +1,5 @@
 ---
-name: '⁉️ Need help?'
+name: "⁉️ Need help?"
 about: Please describe the problem.
 ---
 

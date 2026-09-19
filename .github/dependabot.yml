@@ -39,13 +39,13 @@ updates:
       dependencies:
         dependency-type: "production"
         update-types:
-        - "minor"
-        - "patch"
+          - "minor"
+          - "patch"
       # Production dependencies with breaking changes
       dependencies-major:
         dependency-type: "production"
         update-types:
-        - "major"
+          - "major"
       # Development dependencies
       dev-dependencies:
         dependency-type: "development"
@@ -53,4 +53,3 @@ updates:
     # ignore:
     #   - dependency-name: tap
     #     update-types: ["version-update:semver-major"]
-
