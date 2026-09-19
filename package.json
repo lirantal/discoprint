@@ -6,10 +6,11 @@
   "description": "Classify an artist's full discography by theme, mood and complexity using Jev (TypeSafe AI).",
   "scripts": {
     "classify": "tsx src/index.ts",
+    "visualize": "tsx src/visualize.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test",
-    "test:coverage": "mkdir -p coverage && tsx --test --experimental-test-coverage --test-coverage-exclude=\"src/**/*.test.ts\" --test-coverage-exclude=\"src/index.ts\" --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info"
+    "test:coverage": "mkdir -p coverage && tsx --test --experimental-test-coverage --test-coverage-exclude=\"src/**/*.test.ts\" --test-coverage-exclude=\"src/index.ts\" --test-coverage-exclude=\"src/visualize.ts\" --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info"
   },
   "dependencies": {
     "@typesafe-ai/sdk": "^0.6.0",

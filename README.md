@@ -39,6 +39,43 @@ recorded alongside each value as `themeConfidence`, `moodConfidence` and
 [src/types.ts](src/types.ts) (`SongClassification`) and is what lands in
 `data/output/<artist-slug>.json`.
 
+## Visualizing results
+
+```bash
+npm run visualize -- "Bon Jovi"   # reads data/output/<artist-slug>.json
+npm run visualize                 # no artist given -> interactive prompt
+```
+
+Renders a small terminal dashboard from already-classified data (no network
+calls, no API key needed):
+
+- **header** — song/skipped counts and release-date range
+- **mood arc** — one line, whole discography, chronological: a colored
+  sparkline (red → yellow → green) of `mood` over time
+- **theme legend + mix bar** — which themes appear, and their proportion
+  across the discography
+- **heatmap** — adaptive to your terminal size instead of a fixed layout:
+  - fits in the terminal → **one row per song**: a theme-colored swatch, the
+    title, a mood bar, and a complexity glyph
+  - too many songs to fit → **one row per album** instead, each with a
+    fixed-width strip of theme-colored blocks (one per song) plus the
+    album's averaged mood/complexity — so a 200-song discography still
+    renders in a couple dozen lines, no scrolling
+
+Color is truecolor ANSI (24-bit), disabled automatically when `NO_COLOR` is
+set or output isn't a TTY (e.g. piped to a file).
+
+**Built for a second renderer.** [src/viz/data.ts](src/viz/data.ts) turns raw
+`SongClassification[]` into a renderer-agnostic `VisualizationData` shape
+(sorted songs, album groups with averages, theme distribution, date range) —
+pure functions, no terminal/HTML concerns. [src/viz/render-terminal.ts](src/viz/render-terminal.ts)
+is the only piece that knows about ANSI codes and terminal width; a future
+`render-html.ts` would consume the exact same `VisualizationData` to produce
+a self-contained HTML file instead. [src/viz/theme-palette.ts](src/viz/theme-palette.ts)
+and [src/viz/colors.ts](src/viz/colors.ts) (hex colors, gradient interpolation)
+are renderer-independent too, so an HTML version would reuse the same palette
+and just emit CSS instead of ANSI escapes.
+
 ## Setup
 
 ```bash
@@ -128,6 +165,8 @@ npm run test:coverage # same, plus a line/branch/function coverage report
 - [src/musicbrainz-retry-limit.test.ts](src/musicbrainz-retry-limit.test.ts) — retry exhaustion on a persistent 503, isolated in its own file/process (see the comment in it for why)
 - [src/prompt.test.ts](src/prompt.test.ts) — the interactive text prompt: TTY/CI detection, validation retries, default-value fallback, cancellation
 - [src/pipeline.test.ts](src/pipeline.test.ts) — full integration run against a temp directory: fresh run, cached rerun (only artist resolution hits the network), `--force`, `--limit`
+- [src/viz/colors.test.ts](src/viz/colors.test.ts), [src/viz/data.test.ts](src/viz/data.test.ts) — color interpolation and the pure data-shaping/aggregation logic
+- [src/viz/render-terminal.test.ts](src/viz/render-terminal.test.ts) — adaptive per-song/per-album view selection, column alignment, and edge cases (0 songs, 1 song, very long titles)
 
 `test:coverage` writes an LCOV report to `coverage/lcov.info` (gitignored) — pipe it into
 your editor's coverage gutters or `genhtml` for an HTML view. `src/index.ts` (the argv-parsing
