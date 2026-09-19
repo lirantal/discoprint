@@ -15,7 +15,6 @@ const SPARK_CHARS = " ▁▂▃▄▅▆▇█";
 const EIGHTHS = " ▏▎▍▌▋▊▉█";
 const COMPLEXITY_GLYPHS = ["░", "▒", "▓", "█"];
 const MOOD_MAX = 4;
-const COMPLEXITY_MAX = 3;
 const MOOD_BAR_WIDTH = 6;
 
 /** Renders a shaped VisualizationData into printable lines. Pure — no I/O, no process.stdout access. */
@@ -28,20 +27,23 @@ export function renderTerminal(data: VisualizationData, options: TerminalRenderO
   lines.push(renderHeader(data, colorEnabled));
   lines.push("");
   lines.push(renderMoodArc(data, width, colorEnabled));
+  lines.push(renderMoodScale(colorEnabled));
   lines.push("");
   lines.push(...renderLegend(data, width, colorEnabled));
   const distributionBar = renderThemeDistributionBar(data, width, colorEnabled);
   if (distributionBar) lines.push(distributionBar);
   lines.push("");
 
-  const reserved = lines.length + 3;
+  const reserved = lines.length + 4; // + the column header row we're about to add
   const availableRows = Math.max(3, height - reserved);
 
   if (data.songs.length === 0) {
     lines.push(dim("No classified songs yet.", colorEnabled));
   } else if (data.songs.length <= availableRows) {
+    lines.push(renderSongTableHeader(width, colorEnabled));
     for (const song of data.songs) lines.push(renderSongRow(song, width, colorEnabled));
   } else {
+    lines.push(renderAlbumTableHeader(width, colorEnabled));
     for (const album of data.albums) lines.push(renderAlbumRow(album, width, colorEnabled));
   }
 
@@ -86,27 +88,39 @@ function renderMoodArc(data: VisualizationData, width: number, colorEnabled: boo
   return `${dim(label, colorEnabled)}${arc}`;
 }
 
+/** A tiny key for the mood arc's red->yellow->green gradient, indented to sit under it. */
+function renderMoodScale(colorEnabled: boolean): string {
+  const swatch = (hex: string) => fg("██", hex, colorEnabled);
+  return `${" ".repeat(10)}${swatch("#ef4444")} ${dim("sad", colorEnabled)}   ${swatch("#eab308")} ${dim("neutral", colorEnabled)}   ${swatch("#22c55e")} ${dim("upbeat", colorEnabled)}`;
+}
+
 function renderLegend(data: VisualizationData, width: number, colorEnabled: boolean): string[] {
   if (data.themeDistribution.length === 0) return [];
 
+  // Matches "theme mix " below in width, so both lines' content starts at the same column.
+  const label = "themes    ";
+  const indent = " ".repeat(label.length);
+  const available = Math.max(20, width - label.length);
+
   const chips = data.themeDistribution.map(({ theme }) => {
-    const { hex, label } = themeColor(theme);
-    return `${fg("██", hex, colorEnabled)} ${dim(label, colorEnabled)}`;
+    const { hex, label: themeLabel } = themeColor(theme);
+    return `${fg("██", hex, colorEnabled)} ${dim(themeLabel, colorEnabled)}`;
   });
 
-  const lines: string[] = [];
+  const rows: string[] = [];
   let current = "";
   for (const chip of chips) {
     const candidate = current ? `${current}   ${chip}` : chip;
-    if (visibleLength(candidate) > width && current) {
-      lines.push(current);
+    if (visibleLength(candidate) > available && current) {
+      rows.push(current);
       current = chip;
     } else {
       current = candidate;
     }
   }
-  if (current) lines.push(current);
-  return lines;
+  if (current) rows.push(current);
+
+  return rows.map((row, i) => `${dim(i === 0 ? label : indent, colorEnabled)}${row}`);
 }
 
 function renderThemeDistributionBar(data: VisualizationData, width: number, colorEnabled: boolean): string {
@@ -145,21 +159,47 @@ function complexityGlyph(value: number, colorEnabled: boolean): string {
   return dim(COMPLEXITY_GLYPHS[index], colorEnabled);
 }
 
+// swatch(2), gap, year(4), gap, mood bar, gap, complexity(1), trailing gaps.
+const SONG_ROW_FIXED_WIDTH = 2 + 1 + 4 + 1 + MOOD_BAR_WIDTH + 1 + 1 + 2;
+
+function songTitleWidth(width: number): number {
+  return Math.max(10, width - SONG_ROW_FIXED_WIDTH);
+}
+
+function renderSongTableHeader(width: number, colorEnabled: boolean): string {
+  const blankSwatch = "  ";
+  const blankYear = "    ";
+  const titleLabel = "song".padEnd(songTitleWidth(width));
+  const moodLabel = "mood".padEnd(MOOD_BAR_WIDTH);
+  return dim(`${blankSwatch} ${blankYear} ${titleLabel} ${moodLabel} cplx`, colorEnabled);
+}
+
 function renderSongRow(song: SongClassification, width: number, colorEnabled: boolean): string {
   const { hex } = themeColor(song.theme);
   const swatch = fg("██", hex, colorEnabled);
   const yearLabel = dim(year(song.releaseDate), colorEnabled);
   const moodBar = renderBar(song.mood, MOOD_MAX, MOOD_BAR_WIDTH, moodGradientHex(song.mood / MOOD_MAX), colorEnabled);
   const cplx = complexityGlyph(song.complexity, colorEnabled);
-
-  const fixedWidth = 2 + 1 + 4 + 1 + MOOD_BAR_WIDTH + 1 + 1 + 2; // swatch, gap, year, gap, bar, gap, cplx, gaps
-  const titleWidth = Math.max(10, width - fixedWidth);
-  const title = truncate(song.track, titleWidth);
+  const title = truncate(song.track, songTitleWidth(width));
 
   return `${swatch} ${yearLabel} ${title} ${moodBar} ${cplx}`;
 }
 
 const ALBUM_STRIP_WIDTH = 20;
+// year(4), gap, strip, gap, mood bar, gap, complexity(1), gap, count(~6), trailing gaps.
+const ALBUM_ROW_FIXED_WIDTH = 4 + 1 + ALBUM_STRIP_WIDTH + 1 + MOOD_BAR_WIDTH + 1 + 1 + 1 + 6;
+
+function albumTitleWidth(width: number): number {
+  return Math.max(10, width - ALBUM_ROW_FIXED_WIDTH - 1);
+}
+
+function renderAlbumTableHeader(width: number, colorEnabled: boolean): string {
+  const blankYear = "    ";
+  const titleLabel = "album".padEnd(albumTitleWidth(width));
+  const stripLabel = "songs →".padEnd(ALBUM_STRIP_WIDTH);
+  const moodLabel = "mood".padEnd(MOOD_BAR_WIDTH);
+  return dim(`${blankYear} ${titleLabel} ${stripLabel} ${moodLabel} cplx`, colorEnabled);
+}
 
 function renderAlbumRow(album: AlbumGroup, width: number, colorEnabled: boolean): string {
   const yearLabel = dim(year(album.releaseDate), colorEnabled);
@@ -178,9 +218,7 @@ function renderAlbumRow(album: AlbumGroup, width: number, colorEnabled: boolean)
   while (stripChars.length < ALBUM_STRIP_WIDTH) stripChars.push(dim("·", colorEnabled));
   const strip = stripChars.join("");
 
-  const fixedWidth = 4 + 1 + ALBUM_STRIP_WIDTH + 1 + MOOD_BAR_WIDTH + 1 + 1 + 1 + 6; // year, strip, bar, cplx, count, gaps
-  const titleWidth = Math.max(10, width - fixedWidth - 1);
-  const title = truncate(album.album, titleWidth);
+  const title = truncate(album.album, albumTitleWidth(width));
 
   return `${yearLabel} ${title} ${strip} ${moodBar} ${cplx} ${countLabel}`;
 }
