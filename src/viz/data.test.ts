@@ -54,7 +54,10 @@ test("buildVisualizationData", async (t) => {
       [song({ track: "B", releaseDate: "2005-01-01" }), song({ track: "A", releaseDate: "2000-01-01" })],
       0,
     );
-    assert.deepEqual(data.songs.map((s) => s.track), ["A", "B"]);
+    assert.deepEqual(
+      data.songs.map((s) => s.track),
+      ["A", "B"],
+    );
   });
 
   await t.test("groups songs into albums preserving first-seen order, with correct averages", () => {
@@ -125,7 +128,10 @@ test("loadVisualizationData", async (t) => {
 
   await t.test("loads and shapes classification output, including the skipped count", async () => {
     await writeFile(join(dir, "test-artist.json"), JSON.stringify([song({ track: "Only Song" })]));
-    await writeFile(join(dir, "test-artist-skipped.json"), JSON.stringify([{ track: "Skipped", reason: "no lyrics found" }]));
+    await writeFile(
+      join(dir, "test-artist-skipped.json"),
+      JSON.stringify([{ track: "Skipped", reason: "no lyrics found" }]),
+    );
 
     const data = await loadVisualizationData(dir, "test-artist", "Test Artist");
     assert.equal(data.songs.length, 1);

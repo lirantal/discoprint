@@ -85,7 +85,8 @@ test("promptText", async (t) => {
       title: "How many songs to classify?",
       summaryLabel: "Limit",
       defaultValue: "100",
-      validate: (value) => (Number.isInteger(Number(value)) && Number(value) > 0 ? undefined : "Enter a positive whole number."),
+      validate: (value) =>
+        Number.isInteger(Number(value)) && Number(value) > 0 ? undefined : "Enter a positive whole number.",
       input,
       output,
     });

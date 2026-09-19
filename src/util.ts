@@ -14,7 +14,10 @@ export function slugify(value: string): string {
 export function normalizeTrackTitle(title: string): string {
   return title
     .toLowerCase()
-    .replace(/\s*[-–—([].*?(remaster(ed)?|live|deluxe|mono|stereo|edit|version|bonus track|acoustic)[^)\]]*[)\]]?\s*$/i, "")
+    .replace(
+      /\s*[-–—([].*?(remaster(ed)?|live|deluxe|mono|stereo|edit|version|bonus track|acoustic)[^)\]]*[)\]]?\s*$/i,
+      "",
+    )
     .replace(/\s+/g, " ")
     .trim();
 }

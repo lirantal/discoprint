@@ -5,7 +5,6 @@ import { renderTerminal } from "./render-terminal.js";
 import type { SongClassification } from "../types.js";
 
 function stripAnsi(text: string): string {
-  // eslint-disable-next-line no-control-regex
   return text.replace(/\[[0-9;]*m/g, "");
 }
 
@@ -21,7 +20,7 @@ function makeSongs(count: number, songsPerAlbum = 10): SongClassification[] {
       lyricsSource: "lrclib-get",
       theme: ["love", "heartbreak", "party_fun"][i % 3] ?? "love",
       themeConfidence: 0.8,
-      mood: (i % 5),
+      mood: i % 5,
       moodConfidence: 0.8,
       complexity: i % 4,
       complexityConfidence: 0.8,

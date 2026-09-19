@@ -53,7 +53,11 @@ export function resample(values: number[], targetLength: number): number[] {
 }
 
 /** Pure data-shaping: sorting, grouping, aggregating. No I/O — fully unit-testable. */
-export function buildVisualizationData(artist: string, songs: SongClassification[], skippedCount: number): VisualizationData {
+export function buildVisualizationData(
+  artist: string,
+  songs: SongClassification[],
+  skippedCount: number,
+): VisualizationData {
   const sorted = [...songs].sort((a, b) => (a.releaseDate ?? "9999").localeCompare(b.releaseDate ?? "9999"));
 
   const albums: AlbumGroup[] = [];
@@ -92,7 +96,11 @@ export function buildVisualizationData(artist: string, songs: SongClassification
   };
 }
 
-export async function loadVisualizationData(outputDir: string, artistSlug: string, artist: string): Promise<VisualizationData> {
+export async function loadVisualizationData(
+  outputDir: string,
+  artistSlug: string,
+  artist: string,
+): Promise<VisualizationData> {
   const outputPath = join(outputDir, `${artistSlug}.json`);
   let songs: SongClassification[];
   try {

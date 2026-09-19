@@ -72,7 +72,12 @@ function mockDiscography(url: string): Response | undefined {
 
 function mockLyrics(url: string): Response | undefined {
   if (url.includes("lrclib.net/api/get") && url.includes("Song%20One")) {
-    return jsonResponse({ trackName: "Song One", artistName: "Test Artist", plainLyrics: "la la la", instrumental: false });
+    return jsonResponse({
+      trackName: "Song One",
+      artistName: "Test Artist",
+      plainLyrics: "la la la",
+      instrumental: false,
+    });
   }
   if (url.includes("lrclib.net/api/get") && url.includes("Song%20Two")) {
     return new Response("", { status: 404 });

@@ -84,7 +84,9 @@ async function printVisualization(artist: string): Promise<void> {
 }
 
 async function runVisualizeCommand(argv: string[]): Promise<void> {
-  const artist = argv.join(" ").trim() || (await resolveArtistInteractively("Which artist's classification data do you want to visualize?"));
+  const artist =
+    argv.join(" ").trim() ||
+    (await resolveArtistInteractively("Which artist's classification data do you want to visualize?"));
   await printVisualization(artist);
 }
 

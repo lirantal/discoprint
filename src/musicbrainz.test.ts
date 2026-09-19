@@ -68,7 +68,6 @@ test("searchArtist", async (t) => {
     assert.equal(artist.name, "Radiohead");
     assert.equal(calls, 3);
   });
-
 });
 
 test("getDiscography", async (t) => {
@@ -162,7 +161,10 @@ test("getDiscography", async (t) => {
       if (url.includes("release-group=rg-early")) {
         return jsonResponse({
           releases: [
-            { id: "r1", media: [{ tracks: [{ id: "t1", title: "Creep", recording: { id: "rec-early", title: "Creep" } }] }] },
+            {
+              id: "r1",
+              media: [{ tracks: [{ id: "t1", title: "Creep", recording: { id: "rec-early", title: "Creep" } }] }],
+            },
           ],
         });
       }
@@ -172,7 +174,17 @@ test("getDiscography", async (t) => {
           releases: [
             {
               id: "r2",
-              media: [{ tracks: [{ id: "t2", title: "Creep (Remastered)", recording: { id: "rec-late", title: "Creep (Remastered)" } }] }],
+              media: [
+                {
+                  tracks: [
+                    {
+                      id: "t2",
+                      title: "Creep (Remastered)",
+                      recording: { id: "rec-late", title: "Creep (Remastered)" },
+                    },
+                  ],
+                },
+              ],
             },
           ],
         });

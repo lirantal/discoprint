@@ -17,7 +17,9 @@ export interface RunOptions {
 export async function runPipeline(artistName: string, options: RunOptions = {}): Promise<void> {
   const artist = await searchArtist(artistName);
   const artistSlug = slugify(artist.name);
-  console.log(`Resolved "${artistName}" -> ${artist.name}${artist.disambiguation ? ` (${artist.disambiguation})` : ""}`);
+  console.log(
+    `Resolved "${artistName}" -> ${artist.name}${artist.disambiguation ? ` (${artist.disambiguation})` : ""}`,
+  );
 
   const discographyCachePath = join(CACHE_DIR, "musicbrainz", `${artistSlug}.json`);
   let tracks = await readJsonCache<Track[]>(discographyCachePath);

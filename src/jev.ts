@@ -33,7 +33,7 @@ const COMPLEXITY_CRITERIA = [
   "Rich in metaphor, imagery, or literary technique",
 ] as const;
 
-function questionsFor(lyrics: string) {
+function questionsFor() {
   return {
     theme: choice("What is the primary theme of these song lyrics?", THEME_CRITERIA),
     mood: score("How positive or upbeat is the emotional tone of these lyrics?", MOOD_CRITERIA),
@@ -58,7 +58,7 @@ export async function classifySong(params: {
 }): Promise<SongClassification> {
   const response = await getClient().systemOne({
     state: { artist: params.artist, track: params.track, lyrics: params.lyrics },
-    questions: questionsFor(params.lyrics),
+    questions: questionsFor(),
   });
 
   const { theme, mood, complexity, explicit, firstPerson } = response.answers;

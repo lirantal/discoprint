@@ -16,7 +16,10 @@ export function hexToRgb(hex: string): Rgb {
 }
 
 function rgbToHex({ r, g, b }: Rgb): string {
-  const channel = (v: number) => Math.round(clamp(v, 0, 255)).toString(16).padStart(2, "0");
+  const channel = (v: number) =>
+    Math.round(clamp(v, 0, 255))
+      .toString(16)
+      .padStart(2, "0");
   return `#${channel(r)}${channel(g)}${channel(b)}`;
 }
 

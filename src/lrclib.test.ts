@@ -32,7 +32,12 @@ test("fetchLyrics", async (t) => {
     let searchCalled = false;
     t.mock.method(globalThis, "fetch", async (url: string) => {
       if (url.includes("/api/get")) {
-        return jsonResponse({ trackName: "Treefingers", artistName: "Radiohead", plainLyrics: null, instrumental: true });
+        return jsonResponse({
+          trackName: "Treefingers",
+          artistName: "Radiohead",
+          plainLyrics: null,
+          instrumental: true,
+        });
       }
       searchCalled = true;
       return jsonResponse([]);

@@ -22,7 +22,8 @@ const MOOD_BAR_WIDTH = 6;
 const TOTAL_POSSIBLE_THEMES = Object.keys(THEME_PALETTE).length;
 // So the "themes" legend and the "theme mix" bar below it start their content
 // at the same column, regardless of how many themes appear (see `N` in "(N/8)").
-const LEGEND_LABEL_WIDTH = Math.max("theme mix".length, `themes (${TOTAL_POSSIBLE_THEMES}/${TOTAL_POSSIBLE_THEMES})`.length) + 1;
+const LEGEND_LABEL_WIDTH =
+  Math.max("theme mix".length, `themes (${TOTAL_POSSIBLE_THEMES}/${TOTAL_POSSIBLE_THEMES})`.length) + 1;
 
 /** Renders a shaped VisualizationData into printable lines. Pure — no I/O, no process.stdout access. */
 export function renderTerminal(data: VisualizationData, options: TerminalRenderOptions = {}): string[] {
@@ -219,7 +220,13 @@ function renderAlbumTableHeader(width: number, colorEnabled: boolean): string {
 
 function renderAlbumRow(album: AlbumGroup, width: number, colorEnabled: boolean): string {
   const yearLabel = dim(year(album.releaseDate), colorEnabled);
-  const moodBar = renderBar(album.avgMood, MOOD_MAX, MOOD_BAR_WIDTH, moodGradientHex(album.avgMood / MOOD_MAX), colorEnabled);
+  const moodBar = renderBar(
+    album.avgMood,
+    MOOD_MAX,
+    MOOD_BAR_WIDTH,
+    moodGradientHex(album.avgMood / MOOD_MAX),
+    colorEnabled,
+  );
   const cplx = complexityGlyph(album.avgComplexity, colorEnabled);
   // Right-pad to keep this trailing column aligned across rows for typical (<100 track) albums.
   const countLabel = dim(`(${String(album.songs.length).padStart(2)})`, colorEnabled);
@@ -241,6 +248,5 @@ function renderAlbumRow(album: AlbumGroup, width: number, colorEnabled: boolean)
 
 /** Length ignoring ANSI escape sequences — needed to wrap/pad colored strings correctly. */
 function visibleLength(text: string): number {
-  // eslint-disable-next-line no-control-regex
   return text.replace(/\[[0-9;]*m/g, "").length;
 }

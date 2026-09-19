@@ -14,7 +14,7 @@ import { describeError, KnownError } from "./errors.js";
 
 test("describeError", async (t) => {
   await t.test("a KnownError is shown as-is, without a stack trace", () => {
-    const result = describeError(new KnownError("No artist named \"Nonexistent\" found on MusicBrainz."));
+    const result = describeError(new KnownError('No artist named "Nonexistent" found on MusicBrainz.'));
     assert.equal(result.known, true);
     assert.equal(result.message, 'No artist named "Nonexistent" found on MusicBrainz.');
   });

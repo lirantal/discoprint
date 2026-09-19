@@ -40,12 +40,16 @@ async function mbFetch<T>(path: string): Promise<T> {
 
     if (res.status === 503 && attempt < MAX_RETRIES) {
       const backoff = RETRY_BASE_MS * 2 ** attempt;
-      console.warn(`MusicBrainz rate-limited (503), retrying in ${backoff}ms (attempt ${attempt + 1}/${MAX_RETRIES})...`);
+      console.warn(
+        `MusicBrainz rate-limited (503), retrying in ${backoff}ms (attempt ${attempt + 1}/${MAX_RETRIES})...`,
+      );
       await sleep(backoff);
       continue;
     }
 
-    throw new KnownError(`MusicBrainz request failed (${res.status} on ${path}). This is usually transient — try again shortly.`);
+    throw new KnownError(
+      `MusicBrainz request failed (${res.status} on ${path}). This is usually transient — try again shortly.`,
+    );
   }
 }
 
@@ -64,7 +68,9 @@ export async function searchArtist(name: string): Promise<ResolvedArtist> {
   const data = await mbFetch<ArtistSearchResponse>(`/artist/?query=${query}&fmt=json&limit=5`);
   const best = data.artists[0];
   if (!best) {
-    throw new KnownError(`No artist named "${name}" found on MusicBrainz. Check the spelling, or try a different/more specific name.`);
+    throw new KnownError(
+      `No artist named "${name}" found on MusicBrainz. Check the spelling, or try a different/more specific name.`,
+    );
   }
   return { id: best.id, name: best.name, disambiguation: best.disambiguation };
 }
@@ -119,9 +125,7 @@ interface ReleaseBrowseResponse {
 }
 
 async function getTracksForReleaseGroup(rg: ReleaseGroup): Promise<Track[]> {
-  const data = await mbFetch<ReleaseBrowseResponse>(
-    `/release?release-group=${rg.id}&inc=recordings&fmt=json&limit=1`,
-  );
+  const data = await mbFetch<ReleaseBrowseResponse>(`/release?release-group=${rg.id}&inc=recordings&fmt=json&limit=1`);
   const release = data.releases[0];
   if (!release) return [];
 
@@ -145,10 +149,7 @@ async function getTracksForReleaseGroup(rg: ReleaseGroup): Promise<Track[]> {
  * title (first/earliest release wins). One MusicBrainz request per release-group,
  * so this is slow (~1.1s/album) by design to respect their rate limit.
  */
-export async function getDiscography(
-  artistId: string,
-  options: { includeNonAlbums?: boolean } = {},
-): Promise<Track[]> {
+export async function getDiscography(artistId: string, options: { includeNonAlbums?: boolean } = {}): Promise<Track[]> {
   const releaseGroups = await getReleaseGroups(artistId, options.includeNonAlbums ?? false);
 
   const seen = new Map<string, Track>();
