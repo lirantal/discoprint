@@ -10,16 +10,34 @@ couple of content flags — using [Jev](https://docs.typesafe.ai/introduction)
    to an ID and pulls their full album/EP discography with release dates.
 2. **[lrclib.net](https://lrclib.net/docs)** — free, keyless, community lyrics database — fetches plain lyrics
    per track. Tracks with no match are skipped (recorded in `*-skipped.json`).
-3. **Jev** classifies each song against 5 atomic questions in a single batched call:
-   - `theme` (Choice): love / heartbreak / party_fun / money_success / social_political / loss_grief / self_reflection / other
-   - `mood` (Score 0–4): dark/sad → joyful/triumphant
-   - `complexity` (Score 0–3): simple/repetitive → rich in metaphor and imagery
-   - `explicit` (Noul): contains profanity/explicit content
-   - `firstPerson` (Noul): personal, first-person narrative
+3. **Jev** classifies each song against 5 atomic questions, batched into a single
+   `systemOne` call per track (see [Classifiers](#classifiers) below).
 
 Every stage is cached to disk under `data/cache/`, so re-runs are incremental and
 you can safely interrupt a long run (MusicBrainz is rate-limited to 1 req/sec, so
 a big discography takes a few minutes just for step 1).
+
+## Classifiers
+
+Defined in [src/jev.ts](src/jev.ts) — this is the source of truth; update this table
+if you change the questions there. All five are sent together as one `systemOne` call
+per song, with `state = { artist, track, lyrics }` (see TypeSafe's
+[parallel questions cookbook](https://docs.typesafe.ai/cookbooks/parallel_questions)
+on why batching like this beats one call per question).
+
+| Field | Primitive | Question | Options / rubric |
+|---|---|---|---|
+| `theme` | [Choice](https://docs.typesafe.ai/primitives/choice) | What is the primary theme of these song lyrics? | `love` — romantic love, desire, or devotion · `heartbreak` — breakup, longing, or lost love · `party_fun` — partying, dancing, or having a good time · `money_success` — wealth, fame, ambition, or success · `social_political` — social commentary, injustice, or politics · `loss_grief` — death, mourning, or grief · `self_reflection` — introspection, identity, or personal growth · `other` — doesn't clearly fit the above |
+| `mood` | [Score](https://docs.typesafe.ai/primitives/score) 0–4 | How positive or upbeat is the emotional tone of these lyrics? | 0 very dark/sad/despairing · 1 melancholic/downbeat · 2 neutral/mixed · 3 positive/hopeful · 4 joyful/euphoric/triumphant |
+| `complexity` | [Score](https://docs.typesafe.ai/primitives/score) 0–3 | How lyrically dense or literary is the language in these lyrics? | 0 very simple/repetitive · 1 straightforward/plain · 2 some figurative language or wordplay · 3 rich in metaphor, imagery, or literary technique |
+| `explicit` | [Noul](https://docs.typesafe.ai/primitives/noul) 0–1 | These lyrics contain profanity or explicit sexual content. | probability of yes |
+| `firstPerson` | [Noul](https://docs.typesafe.ai/primitives/noul) 0–1 | These lyrics are narrated from a personal, first-person perspective about the singer's own experience. | probability of yes |
+
+`Choice` and `Score` answers also come back with a `confidence` (0–1), which is
+recorded alongside each value as `themeConfidence`, `moodConfidence` and
+`complexityConfidence`. The full row shape per song lives in
+[src/types.ts](src/types.ts) (`SongClassification`) and is what lands in
+`data/output/<artist-slug>.json`.
 
 ## Setup
 
