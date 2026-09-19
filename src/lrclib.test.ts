@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { KnownError } from "./errors.js";
 
 process.env.LRCLIB_MIN_INTERVAL_MS = "0";
 const { fetchLyrics } = await import("./lrclib.js");
@@ -66,5 +67,16 @@ test("fetchLyrics", async (t) => {
 
     const result = await fetchLyrics("Some Artist", "Some Obscure B-Side");
     assert.deepEqual(result, { plainLyrics: null, source: "none" });
+  });
+
+  await t.test("wraps a network failure as a KnownError instead of a raw fetch error", async () => {
+    t.mock.method(globalThis, "fetch", async () => {
+      throw new TypeError("fetch failed");
+    });
+
+    await assert.rejects(
+      () => fetchLyrics("Radiohead", "Airbag"),
+      (err: unknown) => err instanceof KnownError && /Could not reach lrclib\.net/.test(err.message),
+    );
   });
 });

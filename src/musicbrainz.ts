@@ -1,3 +1,4 @@
+import { KnownError } from "./errors.js";
 import type { Track } from "./types.js";
 import { normalizeTrackTitle, sleep } from "./util.js";
 
@@ -24,9 +25,15 @@ async function mbFetch<T>(path: string): Promise<T> {
     if (wait > 0) await sleep(wait);
     lastRequestAt = Date.now();
 
-    const res = await fetch(`${MB_BASE}${path}`, {
-      headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${MB_BASE}${path}`, {
+        headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
+      });
+    } catch (cause) {
+      throw new KnownError("Could not reach MusicBrainz (musicbrainz.org). Check your internet connection.", { cause });
+    }
+
     if (res.ok) {
       return (await res.json()) as T;
     }
@@ -38,7 +45,7 @@ async function mbFetch<T>(path: string): Promise<T> {
       continue;
     }
 
-    throw new Error(`MusicBrainz request failed (${res.status}): ${path}`);
+    throw new KnownError(`MusicBrainz request failed (${res.status} on ${path}). This is usually transient — try again shortly.`);
   }
 }
 
@@ -57,7 +64,7 @@ export async function searchArtist(name: string): Promise<ResolvedArtist> {
   const data = await mbFetch<ArtistSearchResponse>(`/artist/?query=${query}&fmt=json&limit=5`);
   const best = data.artists[0];
   if (!best) {
-    throw new Error(`No MusicBrainz artist found for "${name}"`);
+    throw new KnownError(`No artist named "${name}" found on MusicBrainz. Check the spelling, or try a different/more specific name.`);
   }
   return { id: best.id, name: best.name, disambiguation: best.disambiguation };
 }

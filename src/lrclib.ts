@@ -1,3 +1,4 @@
+import { KnownError } from "./errors.js";
 import type { LyricsResult } from "./types.js";
 import { sleep } from "./util.js";
 
@@ -13,7 +14,11 @@ async function lrclibFetch(path: string): Promise<Response> {
   const wait = MIN_INTERVAL_MS - (Date.now() - lastRequestAt);
   if (wait > 0) await sleep(wait);
   lastRequestAt = Date.now();
-  return fetch(`${LRCLIB_BASE}${path}`, { headers: { "User-Agent": USER_AGENT } });
+  try {
+    return await fetch(`${LRCLIB_BASE}${path}`, { headers: { "User-Agent": USER_AGENT } });
+  } catch (cause) {
+    throw new KnownError("Could not reach lrclib.net. Check your internet connection.", { cause });
+  }
 }
 
 interface LrclibItem {

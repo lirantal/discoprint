@@ -96,6 +96,18 @@ Output lands in `data/output/<artist-slug>.json` — one row per track with all
 five classifications, ready to chart (e.g. mood/complexity over time, theme
 distribution per album).
 
+## Error handling
+
+[src/errors.ts](src/errors.ts) maps predictable failures to a plain message
+instead of a stack trace — anything not on this list still prints its full
+stack trace so it stays debuggable:
+
+- artist name not found on MusicBrainz (typo, or too obscure) → suggests checking the spelling
+- MusicBrainz/lrclib/TypeSafe unreachable (no internet, DNS failure)
+- MusicBrainz request failures (after exhausting 503 retries — see below)
+- TypeSafe API errors: bad/expired key, rate limited, permission denied, or a generic API error, each with its own SDK error class (`AuthenticationError`, `RateLimitError`, etc.) mapped to specific guidance
+- an invalid `--limit` value (e.g. `--limit abc`)
+
 ## Testing
 
 No test framework dependency — just the built-in [node:test](https://nodejs.org/api/test.html)
@@ -112,6 +124,8 @@ npm run test:coverage # same, plus a line/branch/function coverage report
 - [src/musicbrainz.test.ts](src/musicbrainz.test.ts) — artist resolution, release-group filtering (compilations excluded), title dedup across reissues
 - [src/lrclib.test.ts](src/lrclib.test.ts) — the `/get` → `/search` fallback chain, instrumental tracks, no-match handling
 - [src/jev.test.ts](src/jev.test.ts) — asserts the exact request sent to `systemOne` (state shape, all 5 questions batched) and that the response maps correctly onto `SongClassification`
+- [src/errors.test.ts](src/errors.test.ts) — every mapped error case in `describeError`, plus the fallback for anything unrecognized
+- [src/musicbrainz-retry-limit.test.ts](src/musicbrainz-retry-limit.test.ts) — retry exhaustion on a persistent 503, isolated in its own file/process (see the comment in it for why)
 - [src/prompt.test.ts](src/prompt.test.ts) — the interactive text prompt: TTY/CI detection, validation retries, default-value fallback, cancellation
 - [src/pipeline.test.ts](src/pipeline.test.ts) — full integration run against a temp directory: fresh run, cached rerun (only artist resolution hits the network), `--force`, `--limit`
 

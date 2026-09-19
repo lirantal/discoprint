@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { KnownError } from "./errors.js";
 
 // Rate limiting and retry backoff are read from env at module load, so set before importing.
 process.env.MUSICBRAINZ_MIN_INTERVAL_MS = "0";
@@ -26,16 +27,33 @@ test("searchArtist", async (t) => {
     assert.deepEqual(artist, { id: "artist-1", name: "Radiohead", disambiguation: "UK band" });
   });
 
-  await t.test("throws when nothing matches", async () => {
+  await t.test("throws a KnownError with a friendly message when nothing matches (e.g. a typo)", async () => {
     t.mock.method(globalThis, "fetch", async () => jsonResponse({ artists: [] }));
 
-    await assert.rejects(() => searchArtist("Nonexistent Band Xyz"), /No MusicBrainz artist found/);
+    await assert.rejects(
+      () => searchArtist("Nonexistent Band Xyz"),
+      (err: unknown) => err instanceof KnownError && /No artist named "Nonexistent Band Xyz" found/.test(err.message),
+    );
   });
 
-  await t.test("throws immediately on a non-retryable error status", async () => {
+  await t.test("throws a KnownError immediately on a non-retryable error status", async () => {
     t.mock.method(globalThis, "fetch", async () => new Response("", { status: 404 }));
 
-    await assert.rejects(() => searchArtist("Radiohead"), /MusicBrainz request failed \(404\)/);
+    await assert.rejects(
+      () => searchArtist("Radiohead"),
+      (err: unknown) => err instanceof KnownError && /MusicBrainz request failed \(404 on/.test(err.message),
+    );
+  });
+
+  await t.test("wraps a network failure as a KnownError instead of a raw fetch error", async () => {
+    t.mock.method(globalThis, "fetch", async () => {
+      throw new TypeError("fetch failed");
+    });
+
+    await assert.rejects(
+      () => searchArtist("Radiohead"),
+      (err: unknown) => err instanceof KnownError && /Could not reach MusicBrainz/.test(err.message),
+    );
   });
 
   await t.test("retries a 503 (rate limit) and succeeds once it clears", async () => {
@@ -51,22 +69,6 @@ test("searchArtist", async (t) => {
     assert.equal(calls, 3);
   });
 
-  await t.test("gives up after exhausting retries on a persistent 503", async () => {
-    process.env.MUSICBRAINZ_MAX_RETRIES = "2";
-    const { searchArtist: searchArtistWithLowRetries } = await import(
-      `./musicbrainz.js?retries-test=${Math.random()}`
-    );
-
-    let calls = 0;
-    t.mock.method(globalThis, "fetch", async () => {
-      calls++;
-      return new Response("", { status: 503 });
-    });
-
-    await assert.rejects(() => searchArtistWithLowRetries("Radiohead"), /MusicBrainz request failed \(503\)/);
-    assert.equal(calls, 3); // initial attempt + 2 retries
-    delete process.env.MUSICBRAINZ_MAX_RETRIES;
-  });
 });
 
 test("getDiscography", async (t) => {

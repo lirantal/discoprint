@@ -3,6 +3,7 @@
 // anything else runs. See .env.schema and https://varlock.dev.
 import "varlock/auto-load";
 
+import { describeError, KnownError } from "./errors.js";
 import { runPipeline } from "./pipeline.js";
 import { canPromptInteractively, promptText } from "./prompt.js";
 
@@ -15,7 +16,12 @@ function parseArgs(argv: string[]) {
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--limit") {
-      args.limit = Number(argv[++i]);
+      const raw = argv[++i];
+      const value = Number(raw);
+      if (!Number.isInteger(value) || value <= 0) {
+        throw new KnownError(`--limit must be a positive whole number, got "${raw}".`);
+      }
+      args.limit = value;
     } else if (arg === "--include-non-albums") {
       args.includeNonAlbums = true;
     } else if (arg === "--force") {
@@ -75,6 +81,12 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(err);
+  const described = describeError(err);
+  if (described.known) {
+    console.error(described.message);
+  } else {
+    // Anything we didn't anticipate: keep the stack trace so it's debuggable.
+    console.error(err);
+  }
   process.exit(1);
 });
