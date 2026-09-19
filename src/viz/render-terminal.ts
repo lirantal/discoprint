@@ -78,9 +78,11 @@ function renderMoodArc(data: VisualizationData, width: number, colorEnabled: boo
   const label = "mood arc  ";
   if (data.songs.length === 0) return dim(`${label}(no data)`, colorEnabled);
 
-  const gap = "   ";
   const scale = renderMoodScale(colorEnabled);
-  const reserved = label.length + gap.length + visibleLength(scale);
+  // A visible divider, not just whitespace, so the arc (data) and the scale
+  // (a fixed legend, not more data points) don't read as one continuous strip.
+  const separator = `  ${dim("│", colorEnabled)}  `;
+  const reserved = label.length + visibleLength(separator) + visibleLength(scale);
   const series = resample(
     data.songs.map((s) => s.mood),
     Math.max(1, width - reserved),
@@ -94,7 +96,7 @@ function renderMoodArc(data: VisualizationData, width: number, colorEnabled: boo
     })
     .join("");
 
-  return `${dim(label, colorEnabled)}${arc}${gap}${scale}`;
+  return `${dim(label, colorEnabled)}${arc}${separator}${scale}`;
 }
 
 /** A key for the mood gradient, reusing the arc's own character ramp so "how to read this" is unmistakable. */
