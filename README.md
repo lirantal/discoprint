@@ -69,7 +69,11 @@ to include your own contact info/repo URL — MusicBrainz requires this.
 ## Usage
 
 ```bash
-# smoke test on a handful of tracks first
+# interactive: run with no args in a terminal and it'll ask for the artist,
+# then a song limit (defaults to 100 if you just hit enter)
+npm run classify
+
+# non-interactive: pass the artist directly (limit is unbounded unless given)
 npm run classify -- "Radiohead" --limit 10
 
 # full discography
@@ -81,6 +85,12 @@ npm run classify -- "Radiohead" --include-non-albums
 # re-classify ignoring cached results
 npm run classify -- "Radiohead" --force
 ```
+
+The interactive prompt (in the look & feel of
+[lirantal/boxdown](https://github.com/lirantal/boxdown)'s prompts — see
+[src/prompt.ts](src/prompt.ts)) only kicks in when no artist is given *and*
+you're in a real terminal; in CI or a piped/non-TTY invocation with no artist,
+it prints the usage line and exits instead of hanging on input.
 
 Output lands in `data/output/<artist-slug>.json` — one row per track with all
 five classifications, ready to chart (e.g. mood/complexity over time, theme
@@ -102,6 +112,7 @@ npm run test:coverage # same, plus a line/branch/function coverage report
 - [src/musicbrainz.test.ts](src/musicbrainz.test.ts) — artist resolution, release-group filtering (compilations excluded), title dedup across reissues
 - [src/lrclib.test.ts](src/lrclib.test.ts) — the `/get` → `/search` fallback chain, instrumental tracks, no-match handling
 - [src/jev.test.ts](src/jev.test.ts) — asserts the exact request sent to `systemOne` (state shape, all 5 questions batched) and that the response maps correctly onto `SongClassification`
+- [src/prompt.test.ts](src/prompt.test.ts) — the interactive text prompt: TTY/CI detection, validation retries, default-value fallback, cancellation
 - [src/pipeline.test.ts](src/pipeline.test.ts) — full integration run against a temp directory: fresh run, cached rerun (only artist resolution hits the network), `--force`, `--limit`
 
 `test:coverage` writes an LCOV report to `coverage/lcov.info` (gitignored) — pipe it into
