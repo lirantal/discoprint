@@ -25,9 +25,25 @@ a big discography takes a few minutes just for step 1).
 
 ```bash
 npm install
-cp .env.example .env
-# put your key from https://console.typesafe.ai/keys into .env
 ```
+
+Env vars are managed with [Varlock](https://varlock.dev): [.env.schema](.env.schema) declares
+`TYPESAFE_API_KEY` (committed, no secret in it) and a local, gitignored `.env` supplies the
+real value — either a literal key or a 1Password reference, resolved at load time via the
+`op` CLI:
+
+```bash
+# .env (create this yourself, it's gitignored)
+
+# option A: paste your key from https://console.typesafe.ai/keys directly
+TYPESAFE_API_KEY=sk-...
+
+# option B: a 1Password secret reference, resolved on load (requires the `op`
+# CLI installed and the 1Password desktop app running/unlocked for app auth)
+TYPESAFE_API_KEY=op(op://Personal/typesafe/api_key)
+```
+
+Run `varlock load` any time to check what resolves without running the whole pipeline.
 
 Before real use, edit the `USER_AGENT` string in [src/musicbrainz.ts](src/musicbrainz.ts)
 to include your own contact info/repo URL — MusicBrainz requires this.

@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@typesafe-ai/sdk": "^0.6.0"
+    "@typesafe-ai/sdk": "^0.6.0",
+    "@varlock/1password-plugin": "^2.0.4",
+    "varlock": "^1.20.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

@@ -1,10 +1,9 @@
-import { existsSync } from "node:fs";
-import { runPipeline } from "./pipeline.js";
+// Loads .env.schema + any local .env (resolving op:// 1Password references
+// and other resolver functions) and validates against the schema before
+// anything else runs. See .env.schema and https://varlock.dev.
+import "varlock/auto-load";
 
-// Node 20.6+ can load a .env file natively; skip quietly if absent.
-if (existsSync(".env")) {
-  process.loadEnvFile(".env");
-}
+import { runPipeline } from "./pipeline.js";
 
 function parseArgs(argv: string[]) {
   const args = { artist: "", limit: undefined as number | undefined, includeNonAlbums: false, force: false };
@@ -34,11 +33,6 @@ async function main() {
     console.error(
       'Usage: npm run classify -- "Artist Name" [--limit N] [--include-non-albums] [--force]',
     );
-    process.exit(1);
-  }
-
-  if (!process.env.TYPESAFE_API_KEY) {
-    console.error("Missing TYPESAFE_API_KEY. Copy .env.example to .env and set your key, or export it directly.");
     process.exit(1);
   }
 
