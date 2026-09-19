@@ -1,0 +1,9 @@
+name: "discoprint"
+version: 1.0.0
+description: "Classify an artist's discography by theme, mood, and lyrical complexity with Jev (TypeSafe AI), and view it as a colorful terminal dashboard."
+author: "Liran Tal"
+dependencies:
+  apm:
+    - lirantal/nodejs-cli-apps-best-practices/skills/nodejs-cli-best-practices
+  mcp: []
+scripts: {}

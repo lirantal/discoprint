@@ -1,0 +1,15 @@
+{
+  "configurations": [
+    {
+      "name": "Launch discoprint CLI",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--import", "tsx"],
+      "program": "${workspaceFolder}/src/bin/cli.ts",
+      "console": "integratedTerminal",
+      "args": ["visualize", "Bon Jovi"]
+    }
+  ],
+  "version": "0.2.0"
+}

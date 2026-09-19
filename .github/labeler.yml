@@ -1,0 +1,19 @@
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docs/*"
+          - "**/*.md"
+
+build:
+  - changed-files:
+      - any-glob-to-any-file: ".github/workflows/*"
+
+typescript:
+  - changed-files:
+      - any-glob-to-any-file: "**/*.ts"
+
+cli:
+  - any: ["src/bin/**/*"]
+
+test:
+  - any: ["src/**/*.test.ts"]

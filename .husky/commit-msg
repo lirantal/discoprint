@@ -1,0 +1,1 @@
+npm exec validate-conventional-commit < "$1"
