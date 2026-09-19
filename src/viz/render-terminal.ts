@@ -91,7 +91,8 @@ function renderMoodArc(data: VisualizationData, width: number, colorEnabled: boo
   const arc = series
     .map((value) => {
       const t = clamp(value / MOOD_MAX, 0, 1);
-      const char = SPARK_CHARS[Math.round(t * (SPARK_CHARS.length - 1))];
+      // Fallback is unreachable: t is clamped to [0, 1], so the rounded index always falls within SPARK_CHARS.
+      const char = SPARK_CHARS[Math.round(t * (SPARK_CHARS.length - 1))] ?? "▁";
       return fg(char, moodGradientHex(t), colorEnabled);
     })
     .join("");
@@ -148,7 +149,8 @@ function renderThemeDistributionBar(data: VisualizationData, width: number, colo
 
   // Rounding can drift the total off by a few chars; absorb the difference in the largest segment.
   const drift = barWidth - segments.reduce((sum, s) => sum + s.width, 0);
-  if (segments.length > 0) segments[0].width = Math.max(1, segments[0].width + drift);
+  const firstSegment = segments[0];
+  if (firstSegment) firstSegment.width = Math.max(1, firstSegment.width + drift);
 
   const bar = segments.map((s) => fg("█".repeat(s.width), s.hex, colorEnabled)).join("");
   return `${dim("theme mix".padEnd(LEGEND_LABEL_WIDTH), colorEnabled)}${bar}`;
@@ -169,7 +171,8 @@ function renderBar(value: number, max: number, width: number, colorHex: string, 
 
 function complexityGlyph(value: number, colorEnabled: boolean): string {
   const index = clamp(Math.round(value), 0, COMPLEXITY_GLYPHS.length - 1);
-  return dim(COMPLEXITY_GLYPHS[index], colorEnabled);
+  // Fallback is unreachable: index is clamped into COMPLEXITY_GLYPHS' bounds above.
+  return dim(COMPLEXITY_GLYPHS[index] ?? "░", colorEnabled);
 }
 
 // swatch(2), gap, year(4), gap, mood bar, gap, complexity(1), trailing gaps.

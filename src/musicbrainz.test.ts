@@ -130,6 +130,7 @@ test("getDiscography", async (t) => {
       tracks.map((t) => t.title),
       ["Airbag", "Karma Police"],
     );
+    assert.ok(tracks[0]);
     assert.equal(tracks[0].album, "OK Computer");
     assert.equal(tracks[0].releaseDate, "1997-05-21");
   });
@@ -183,6 +184,7 @@ test("getDiscography", async (t) => {
     const tracks = await getDiscography("artist-1");
 
     assert.equal(tracks.length, 1);
+    assert.ok(tracks[0]);
     assert.equal(tracks[0].mbid, "rec-early");
     assert.equal(tracks[0].album, "Pablo Honey");
   });

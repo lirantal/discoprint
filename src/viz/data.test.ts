@@ -69,6 +69,8 @@ test("buildVisualizationData", async (t) => {
     );
 
     assert.equal(data.albums.length, 2);
+    assert.ok(data.albums[0]);
+    assert.ok(data.albums[1]);
     assert.equal(data.albums[0].album, "Alpha");
     assert.equal(data.albums[0].songs.length, 2);
     assert.equal(data.albums[0].avgMood, 1); // (0 + 2) / 2
@@ -87,6 +89,7 @@ test("buildVisualizationData", async (t) => {
       data.themeDistribution.map((d) => d.theme),
       ["love", "heartbreak"],
     );
+    assert.ok(data.themeDistribution[0]);
     assert.equal(data.themeDistribution[0].count, 2);
     assert.equal(Math.round(data.themeDistribution[0].percentage), 67);
   });

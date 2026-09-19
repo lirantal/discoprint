@@ -19,7 +19,7 @@ function makeSongs(count: number, songsPerAlbum = 10): SongClassification[] {
       album: `Album ${albumIndex}`,
       releaseDate: `${2000 + albumIndex}-01-01`,
       lyricsSource: "lrclib-get",
-      theme: ["love", "heartbreak", "party_fun"][i % 3],
+      theme: ["love", "heartbreak", "party_fun"][i % 3] ?? "love",
       themeConfidence: 0.8,
       mood: (i % 5),
       moodConfidence: 0.8,
@@ -80,7 +80,9 @@ test("renderTerminal", async (t) => {
 
   await t.test("truncates a very long song/album title instead of overflowing", () => {
     const longTitle = "A".repeat(200);
-    const data = buildVisualizationData("Test Artist", [{ ...makeSongs(1)[0], track: longTitle }], 0);
+    const [firstSong] = makeSongs(1);
+    assert.ok(firstSong);
+    const data = buildVisualizationData("Test Artist", [{ ...firstSong, track: longTitle }], 0);
     const lines = renderTerminal(data, { width: 60, height: 24, colorEnabled: false });
     // The column header intentionally spells out its trailing legend past the data
     // width (nothing follows it), so only data rows need to respect the width.

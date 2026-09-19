@@ -1,16 +1,70 @@
 {
-  "name": "artist-lyrics-classifier",
+  "name": "discoprint",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
-  "description": "Classify an artist's full discography by theme, mood and complexity using Jev (TypeSafe AI).",
+  "description": "Classify an artist's discography by theme, mood, and lyrical complexity with Jev (TypeSafe AI), and view it as a colorful terminal dashboard.",
+  "types": "dist/main.d.mts",
+  "bin": {
+    "discoprint": "./dist/bin/cli.cjs"
+  },
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/main.d.mts", "default": "./dist/main.mjs" },
+      "require": { "types": "./dist/main.d.cts", "default": "./dist/main.cjs" },
+      "default": "./dist/main.mjs"
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": ["dist", "src"],
   "scripts": {
-    "classify": "tsx src/index.ts",
-    "visualize": "tsx src/visualize.ts",
-    "build": "tsc",
+    "start": "tsx src/bin/cli.ts",
+    "classify": "tsx src/bin/cli.ts",
+    "visualize": "tsx src/bin/cli.ts visualize",
+    "build": "tsc && tsdown",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint . && npm run lint:markdown",
+    "lint:fix": "eslint . --fix",
+    "lint:markdown": "markdownlint-cli -c .github/.markdownlint.yml -i '.git' -i 'node_modules' -i 'dist' -i 'coverage' '**/*.md'",
+    "lint:markdown:fix": "npm run lint:markdown -- --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "tsx --test",
-    "test:coverage": "mkdir -p coverage && tsx --test --experimental-test-coverage --test-coverage-exclude=\"src/**/*.test.ts\" --test-coverage-exclude=\"src/index.ts\" --test-coverage-exclude=\"src/visualize.ts\" --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info"
+    "test:coverage": "mkdir -p coverage && tsx --test --experimental-test-coverage --test-coverage-exclude=\"src/**/*.test.ts\" --test-coverage-exclude=\"src/bin/cli.ts\" --test-coverage-exclude=\"src/main.ts\" --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info",
+    "prepare": "husky",
+    "version": "changeset version",
+    "release": "changeset publish",
+    "release:create": "changeset && git add .changeset && git commit -m \"chore: release\" && git push origin HEAD --no-verify"
+  },
+  "author": {
+    "name": "Liran Tal",
+    "email": "liran.tal@gmail.com",
+    "url": "git+https://github.com/lirantal"
+  },
+  "publishConfig": {
+    "provenance": true,
+    "access": "public"
+  },
+  "license": "Apache-2.0",
+  "keywords": [
+    "cli",
+    "music",
+    "lyrics",
+    "ai",
+    "discography",
+    "mood",
+    "classification",
+    "jev",
+    "typesafe"
+  ],
+  "homepage": "https://github.com/lirantal/discoprint",
+  "bugs": {
+    "url": "https://github.com/lirantal/discoprint/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lirantal/discoprint.git"
   },
   "dependencies": {
     "@typesafe-ai/sdk": "^0.6.0",
@@ -18,11 +72,24 @@
     "varlock": "^1.20.0"
   },
   "devDependencies": {
+    "@changesets/changelog-github": "^0.6.0",
+    "@changesets/cli": "^2.31.0",
+    "@eslint/js": "^10.0.1",
     "@types/node": "^24.0.0",
+    "eslint": "^10.2.1",
+    "eslint-plugin-n": "^17.24.0",
+    "eslint-plugin-security": "^4.0.0",
+    "husky": "^9.0.11",
+    "lint-staged": "^16.2.7",
+    "markdownlint-cli": "0.48.0",
+    "prettier": "^3.3.0",
+    "tsdown": "^0.21.10",
     "tsx": "^4.19.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.59.0",
+    "validate-conventional-commit": "^1.0.4"
   },
-  "engines": {
-    "node": ">=20"
+  "lint-staged": {
+    "**/*.{js,ts,json}": ["eslint --fix"]
   }
 }
