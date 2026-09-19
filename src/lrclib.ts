@@ -5,7 +5,8 @@ const LRCLIB_BASE = "https://lrclib.net/api";
 const USER_AGENT = "artist-lyrics-classifier/0.1.0";
 
 // lrclib.net has no documented rate limit; we're polite anyway.
-const MIN_INTERVAL_MS = 300;
+// Overridable so tests don't have to eat the real delay.
+const MIN_INTERVAL_MS = Number(process.env.LRCLIB_MIN_INTERVAL_MS ?? 300);
 let lastRequestAt = 0;
 
 async function lrclibFetch(path: string): Promise<Response> {

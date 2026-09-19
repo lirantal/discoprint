@@ -8,7 +8,8 @@ const MB_BASE = "https://musicbrainz.org/ws/2";
 const USER_AGENT = "artist-lyrics-classifier/0.1.0 ( https://github.com/your-username/artist-lyrics-classifier )";
 
 // MusicBrainz asks for at most 1 request/second from unauthenticated clients.
-const MIN_INTERVAL_MS = 1100;
+// Overridable so tests don't have to eat the real delay.
+const MIN_INTERVAL_MS = Number(process.env.MUSICBRAINZ_MIN_INTERVAL_MS ?? 1100);
 let lastRequestAt = 0;
 
 async function mbFetch<T>(path: string): Promise<T> {

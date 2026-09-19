@@ -86,6 +86,28 @@ Output lands in `data/output/<artist-slug>.json` — one row per track with all
 five classifications, ready to chart (e.g. mood/complexity over time, theme
 distribution per album).
 
+## Testing
+
+No test framework dependency — just the built-in [node:test](https://nodejs.org/api/test.html)
+runner (via `tsx` so it can load `.ts` files with the project's `.js`-suffixed import style)
+and `node:assert`. Every network boundary (MusicBrainz, lrclib, the TypeSafe API) is mocked
+by stubbing `globalThis.fetch` per test with `t.mock.method`; nothing hits the real internet.
+
+```bash
+npm test              # run everything once
+npm run test:coverage # same, plus a line/branch/function coverage report
+```
+
+- [src/util.test.ts](src/util.test.ts) — pure functions (`slugify`, `normalizeTrackTitle`) and the disk-cache round trip
+- [src/musicbrainz.test.ts](src/musicbrainz.test.ts) — artist resolution, release-group filtering (compilations excluded), title dedup across reissues
+- [src/lrclib.test.ts](src/lrclib.test.ts) — the `/get` → `/search` fallback chain, instrumental tracks, no-match handling
+- [src/jev.test.ts](src/jev.test.ts) — asserts the exact request sent to `systemOne` (state shape, all 5 questions batched) and that the response maps correctly onto `SongClassification`
+- [src/pipeline.test.ts](src/pipeline.test.ts) — full integration run against a temp directory: fresh run, cached rerun (only artist resolution hits the network), `--force`, `--limit`
+
+`test:coverage` writes an LCOV report to `coverage/lcov.info` (gitignored) — pipe it into
+your editor's coverage gutters or `genhtml` for an HTML view. `src/index.ts` (the argv-parsing
+CLI shell) is excluded since it's a thin wrapper with no logic worth mocking `process.exit` for.
+
 ## Notes / limitations
 
 - lrclib is community-sourced; some tracks (especially deep cuts or non-English
