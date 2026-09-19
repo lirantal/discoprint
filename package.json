@@ -1,0 +1,23 @@
+{
+  "name": "artist-lyrics-classifier",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Classify an artist's full discography by theme, mood and complexity using Jev (TypeSafe AI).",
+  "scripts": {
+    "classify": "tsx src/index.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@typesafe-ai/sdk": "^0.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
