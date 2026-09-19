@@ -1,8 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-// Rate limiting is read from env at module load, so set it before importing.
+// Rate limiting and retry backoff are read from env at module load, so set before importing.
 process.env.MUSICBRAINZ_MIN_INTERVAL_MS = "0";
+process.env.MUSICBRAINZ_RETRY_BASE_MS = "0";
 const { searchArtist, getDiscography } = await import("./musicbrainz.js");
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -31,10 +32,40 @@ test("searchArtist", async (t) => {
     await assert.rejects(() => searchArtist("Nonexistent Band Xyz"), /No MusicBrainz artist found/);
   });
 
-  await t.test("throws on a non-OK response", async () => {
-    t.mock.method(globalThis, "fetch", async () => new Response("", { status: 503 }));
+  await t.test("throws immediately on a non-retryable error status", async () => {
+    t.mock.method(globalThis, "fetch", async () => new Response("", { status: 404 }));
 
-    await assert.rejects(() => searchArtist("Radiohead"), /MusicBrainz request failed \(503\)/);
+    await assert.rejects(() => searchArtist("Radiohead"), /MusicBrainz request failed \(404\)/);
+  });
+
+  await t.test("retries a 503 (rate limit) and succeeds once it clears", async () => {
+    let calls = 0;
+    t.mock.method(globalThis, "fetch", async () => {
+      calls++;
+      if (calls < 3) return new Response("", { status: 503 });
+      return jsonResponse({ artists: [{ id: "artist-1", name: "Radiohead", score: 100 }] });
+    });
+
+    const artist = await searchArtist("Radiohead");
+    assert.equal(artist.name, "Radiohead");
+    assert.equal(calls, 3);
+  });
+
+  await t.test("gives up after exhausting retries on a persistent 503", async () => {
+    process.env.MUSICBRAINZ_MAX_RETRIES = "2";
+    const { searchArtist: searchArtistWithLowRetries } = await import(
+      `./musicbrainz.js?retries-test=${Math.random()}`
+    );
+
+    let calls = 0;
+    t.mock.method(globalThis, "fetch", async () => {
+      calls++;
+      return new Response("", { status: 503 });
+    });
+
+    await assert.rejects(() => searchArtistWithLowRetries("Radiohead"), /MusicBrainz request failed \(503\)/);
+    assert.equal(calls, 3); // initial attempt + 2 retries
+    delete process.env.MUSICBRAINZ_MAX_RETRIES;
   });
 });
 

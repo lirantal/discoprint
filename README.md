@@ -129,3 +129,8 @@ CLI shell) is excluded since it's a thin wrapper with no logic worth mocking `pr
 - Costs scale with API pricing per `systemOne` call; each track is one call
   batching all 5 questions (much cheaper than 5 separate calls — see TypeSafe's
   [parallel questions cookbook](https://docs.typesafe.ai/cookbooks/parallel_questions)).
+- MusicBrainz occasionally returns `503` even when you're well within the 1
+  req/sec limit — per their own docs that specifically means "rate limited,"
+  usually from other traffic sharing your egress IP (common on shared/cloud
+  dev environments). [src/musicbrainz.ts](src/musicbrainz.ts) retries a `503`
+  with exponential backoff (5 attempts by default) before giving up.

@@ -12,18 +12,34 @@ const USER_AGENT = "artist-lyrics-classifier/0.1.0 ( https://github.com/your-use
 const MIN_INTERVAL_MS = Number(process.env.MUSICBRAINZ_MIN_INTERVAL_MS ?? 1100);
 let lastRequestAt = 0;
 
-async function mbFetch<T>(path: string): Promise<T> {
-  const wait = MIN_INTERVAL_MS - (Date.now() - lastRequestAt);
-  if (wait > 0) await sleep(wait);
-  lastRequestAt = Date.now();
+// Per MusicBrainz's own docs, a 503 specifically means "rate limit exceeded"
+// (their side, often from other traffic sharing your egress IP) rather than a
+// generic outage — so it's worth a few retries with backoff before giving up.
+const MAX_RETRIES = Number(process.env.MUSICBRAINZ_MAX_RETRIES ?? 5);
+const RETRY_BASE_MS = Number(process.env.MUSICBRAINZ_RETRY_BASE_MS ?? 1000);
 
-  const res = await fetch(`${MB_BASE}${path}`, {
-    headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
-  });
-  if (!res.ok) {
+async function mbFetch<T>(path: string): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    const wait = MIN_INTERVAL_MS - (Date.now() - lastRequestAt);
+    if (wait > 0) await sleep(wait);
+    lastRequestAt = Date.now();
+
+    const res = await fetch(`${MB_BASE}${path}`, {
+      headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
+    });
+    if (res.ok) {
+      return (await res.json()) as T;
+    }
+
+    if (res.status === 503 && attempt < MAX_RETRIES) {
+      const backoff = RETRY_BASE_MS * 2 ** attempt;
+      console.warn(`MusicBrainz rate-limited (503), retrying in ${backoff}ms (attempt ${attempt + 1}/${MAX_RETRIES})...`);
+      await sleep(backoff);
+      continue;
+    }
+
     throw new Error(`MusicBrainz request failed (${res.status}): ${path}`);
   }
-  return (await res.json()) as T;
 }
 
 interface ArtistSearchResponse {
