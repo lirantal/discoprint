@@ -4,16 +4,19 @@ import { describeError, KnownError } from "../errors.js";
 import { runPipeline } from "../pipeline.js";
 import { canPromptInteractively, promptText } from "../prompt.js";
 import { slugify } from "../util.js";
+import { colorsEnabled } from "../viz/colors.js";
 import { loadVisualizationData } from "../viz/data.js";
-import { renderTerminal } from "../viz/render-terminal.js";
+import { renderHeader, renderTerminal } from "../viz/render-terminal.js";
 
 const DEFAULT_LIMIT = 100;
 const OUTPUT_DIR = join(process.cwd(), "data", "output");
 
 const USAGE = `Usage:
-  discoprint [Artist Name] [--limit N] [--include-non-albums] [--force] [--no-visualize]
+  discoprint [Artist Name] [--limit N] [--include-non-albums] [--force] [--no-visualize] [--verbose]
     Classify an artist's discography with Jev, then show the visualization.
     With no artist and a real terminal, prompts interactively instead.
+    By default only a one-line summary is printed; pass --verbose for
+    per-song progress (artist resolution, discography fetch, one line per song).
 
   discoprint visualize [Artist Name]
     Re-render the visualization from already-classified data. No network calls.`;
@@ -24,10 +27,17 @@ interface ClassifyArgs {
   includeNonAlbums: boolean;
   force: boolean;
   noVisualize: boolean;
+  verbose: boolean;
 }
 
 function parseClassifyArgs(argv: string[]): ClassifyArgs {
-  const args: ClassifyArgs = { artist: "", includeNonAlbums: false, force: false, noVisualize: false };
+  const args: ClassifyArgs = {
+    artist: "",
+    includeNonAlbums: false,
+    force: false,
+    noVisualize: false,
+    verbose: false,
+  };
   const positional: string[] = [];
 
   for (let i = 0; i < argv.length; i++) {
@@ -47,6 +57,8 @@ function parseClassifyArgs(argv: string[]): ClassifyArgs {
       args.force = true;
     } else if (arg === "--no-visualize") {
       args.noVisualize = true;
+    } else if (arg === "--verbose") {
+      args.verbose = true;
     } else {
       positional.push(arg);
     }
@@ -120,10 +132,16 @@ async function runClassifyCommand(argv: string[]): Promise<void> {
     limit: args.limit,
     includeNonAlbums: args.includeNonAlbums,
     force: args.force,
+    verbose: args.verbose,
   });
 
   if (!args.noVisualize) {
     await printVisualization(args.artist);
+  } else {
+    // No dashboard to show, so print the one-line summary the dashboard's
+    // header would otherwise have carried.
+    const data = await loadVisualizationData(OUTPUT_DIR, slugify(args.artist), args.artist);
+    console.log(renderHeader(data, colorsEnabled()));
   }
 }
 

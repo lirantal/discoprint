@@ -12,25 +12,28 @@ export interface RunOptions {
   limit?: number;
   includeNonAlbums?: boolean;
   force?: boolean;
+  /** Print per-step progress (artist resolution, discography fetch, one line per song). Off by default: only a one-line summary is shown. */
+  verbose?: boolean;
 }
 
 export async function runPipeline(artistName: string, options: RunOptions = {}): Promise<void> {
   const pipelineStartedAt = Date.now();
+  const log = (message: string): void => {
+    if (options.verbose) console.log(message);
+  };
 
   const artist = await searchArtist(artistName);
   const artistSlug = slugify(artist.name);
-  console.log(
-    `Resolved "${artistName}" -> ${artist.name}${artist.disambiguation ? ` (${artist.disambiguation})` : ""}`,
-  );
+  log(`Resolved "${artistName}" -> ${artist.name}${artist.disambiguation ? ` (${artist.disambiguation})` : ""}`);
 
   const discographyCachePath = join(CACHE_DIR, "musicbrainz", `${artistSlug}.json`);
   let tracks = await readJsonCache<Track[]>(discographyCachePath);
   if (!tracks || options.force) {
-    console.log("Fetching discography from MusicBrainz (1 request/sec, this takes a while)...");
+    log("Fetching discography from MusicBrainz (1 request/sec, this takes a while)...");
     tracks = await getDiscography(artist.id, { includeNonAlbums: options.includeNonAlbums });
     await writeJsonCache(discographyCachePath, tracks);
   }
-  console.log(`Discography resolved: ${tracks.length} unique tracks.`);
+  log(`Discography resolved: ${tracks.length} unique tracks.`);
 
   const limited = options.limit ? tracks.slice(0, options.limit) : tracks;
   const results: SongClassification[] = [];
@@ -54,7 +57,7 @@ export async function runPipeline(artistName: string, options: RunOptions = {}):
     }
 
     if (!lyrics.plainLyrics) {
-      console.log(`${progress} ${track.title} - no lyrics found, skipping`);
+      log(`${progress} ${track.title} - no lyrics found, skipping`);
       skipped.push({ track: track.title, reason: "no lyrics found" });
       continue;
     }
@@ -79,7 +82,7 @@ export async function runPipeline(artistName: string, options: RunOptions = {}):
       await writeJsonCache(classificationCachePath, classification);
     }
 
-    console.log(`${progress} ${track.title} - theme=${classification.theme} mood=${classification.mood.toFixed(2)}`);
+    log(`${progress} ${track.title} - theme=${classification.theme} mood=${classification.mood.toFixed(2)}`);
     results.push(classification);
   }
 
@@ -101,12 +104,12 @@ export async function runPipeline(artistName: string, options: RunOptions = {}):
   await writeJsonCache(join(OUTPUT_DIR, `${artistSlug}-skipped.json`), skipped);
   await writeJsonCache(join(OUTPUT_DIR, `${artistSlug}-meta.json`), meta);
 
-  console.log(`\nDone. Classified ${results.length}/${limited.length} tracks (${skipped.length} skipped, no lyrics).`);
+  log(`\nDone. Classified ${results.length}/${limited.length} tracks (${skipped.length} skipped, no lyrics).`);
   if (songsClassifiedThisRun > 0) {
-    console.log(
+    log(
       `Jev usage this run: ${songsClassifiedThisRun} song(s), ${inputTokens} input / ${outputTokens} output tokens, ` +
         `~$${meta.estimatedCostUsd.toFixed(4)}, ${(classifyDurationMs / 1000).toFixed(1)}s.`,
     );
   }
-  console.log(`Output: data/output/${artistSlug}.json`);
+  log(`Output: data/output/${artistSlug}.json`);
 }

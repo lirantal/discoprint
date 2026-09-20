@@ -25,6 +25,16 @@ const TOTAL_POSSIBLE_THEMES = Object.keys(THEME_PALETTE).length;
 const LEGEND_LABEL_WIDTH =
   Math.max("theme mix".length, `themes (${TOTAL_POSSIBLE_THEMES}/${TOTAL_POSSIBLE_THEMES})`.length) + 1;
 
+/** The `◆  Artist  — N songs classified · year–year` summary line. Exported so callers that skip the full dashboard (e.g. `--no-visualize`) can still print a one-line result. */
+export function renderHeader(data: VisualizationData, colorEnabled: boolean): string {
+  const parts = [`${data.songs.length} songs classified`];
+  if (data.skippedCount > 0) parts.push(`${data.skippedCount} skipped`);
+  const { from, to } = data.dateRange;
+  if (from) parts.push(from === to ? year(from) : `${year(from)}–${year(to)}`);
+
+  return `${fg("◆", "#22d3ee", colorEnabled)}  ${bold(data.artist, colorEnabled)}  ${dim(`— ${parts.join(" · ")}`, colorEnabled)}`;
+}
+
 /** Renders a shaped VisualizationData into printable lines. Pure — no I/O, no process.stdout access. */
 export function renderTerminal(data: VisualizationData, options: TerminalRenderOptions = {}): string[] {
   const width = Math.max(40, options.width ?? process.stdout.columns ?? 80);
@@ -72,15 +82,6 @@ function truncate(text: string, maxLength: number): string {
   return `${text.slice(0, Math.max(1, maxLength - 1))}…`;
 }
 
-function renderHeader(data: VisualizationData, colorEnabled: boolean): string {
-  const parts = [`${data.songs.length} songs classified`];
-  if (data.skippedCount > 0) parts.push(`${data.skippedCount} skipped`);
-  const { from, to } = data.dateRange;
-  if (from) parts.push(from === to ? year(from) : `${year(from)}–${year(to)}`);
-
-  return `${fg("◆", "#22d3ee", colorEnabled)}  ${bold(data.artist, colorEnabled)}  ${dim(`— ${parts.join(" · ")}`, colorEnabled)}`;
-}
-
 function renderMoodArc(data: VisualizationData, width: number, colorEnabled: boolean): string {
   const label = "mood arc  ";
   if (data.songs.length === 0) return dim(`${label}(no data)`, colorEnabled);
@@ -111,7 +112,7 @@ function renderMoodArc(data: VisualizationData, width: number, colorEnabled: boo
 function renderMoodScale(colorEnabled: boolean): string {
   const steps = SPARK_CHARS.split("");
   const ramp = steps.map((char, i) => fg(char, moodGradientHex(i / (steps.length - 1)), colorEnabled)).join("");
-  return `${dim("sad", colorEnabled)} ${ramp} ${dim("upbeat", colorEnabled)}`;
+  return `${dim("( sad", colorEnabled)} ${ramp} ${dim("upbeat)", colorEnabled)}`;
 }
 
 function renderLegend(data: VisualizationData, width: number, colorEnabled: boolean): string[] {

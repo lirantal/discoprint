@@ -49,7 +49,9 @@ discoprint visualize "Bon Jovi"
 
 Flags for the classify path: `--limit N` (default 100 when prompted interactively,
 unbounded otherwise), `--include-non-albums` (include singles/live albums/compilations,
-default is albums + EPs only), `--force` (re-classify ignoring cached results).
+default is albums + EPs only), `--force` (re-classify ignoring cached results),
+`--verbose` (print per-step progress — artist resolution, discography fetch, one
+line per song — instead of just the one-line summary shown by default).
 
 ## How it works
 
