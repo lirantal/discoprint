@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { sleep } from "./util.js";
 
 process.env.MUSICBRAINZ_MIN_INTERVAL_MS = "0";
+process.env.MUSICBRAINZ_RETRY_BASE_MS = "0";
 process.env.LRCLIB_MIN_INTERVAL_MS = "0";
 process.env.TYPESAFE_API_KEY = "test-key";
 
@@ -202,6 +203,35 @@ test("runPipeline reports progress via onEvent, ending with run-completed", asyn
   assert.ok(events.includes("classify-started"));
   assert.ok(events.includes("classify-completed"));
   assert.equal(events.at(-1), "run-completed");
+});
+
+test("runPipeline reports a MusicBrainz rate-limit retry via onEvent instead of writing to the console", async (t) => {
+  let calls = 0;
+  t.mock.method(globalThis, "fetch", async (url: string) => {
+    if (url.includes("/artist/?query=")) {
+      calls++;
+      if (calls < 2) return new Response("", { status: 503 });
+      return jsonResponse({ artists: [{ id: "artist-retry", name: "Retry Artist", score: 100 }] });
+    }
+    return router(url, [mockDiscography, mockLyrics, mockJevClassification("love", 2)]);
+  });
+
+  const events: string[] = [];
+  await runPipeline("Retry Artist", { limit: 1, onEvent: (e) => events.push(e.type) });
+
+  assert.ok(events.includes("musicbrainz-retry"));
+  assert.equal(events.at(-1), "run-completed");
+});
+
+test("runPipeline emits run-failed and rejects when artist resolution exhausts its retries", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => new Response("", { status: 503 }));
+
+  const events: string[] = [];
+  await assert.rejects(() => runPipeline("Persistently Rate Limited Artist", { onEvent: (e) => events.push(e.type) }));
+
+  assert.ok(events.includes("musicbrainz-retry"));
+  assert.equal(events.at(-1), "run-failed");
+  assert.ok(!events.includes("run-completed"));
 });
 
 test("runPipeline calling onEvent is optional — nothing breaks without one", async (t) => {

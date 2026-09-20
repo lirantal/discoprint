@@ -36,11 +36,31 @@ interface PendingClassification {
 }
 
 export async function runPipeline(artistName: string, options: RunOptions = {}): Promise<void> {
-  const pipelineStartedAt = Date.now();
   const emit = (event: PipelineEvent): void => options.onEvent?.(event);
+  try {
+    await runPipelineInner(artistName, options, emit);
+  } catch (error) {
+    // Emitted before rethrowing so a UI watching this stream doesn't just
+    // freeze on whatever it was showing mid-run (e.g. a spinner stuck on
+    // "resolving artist" forever) — it gets a definitive "this failed" beat
+    // instead. The friendly, human-readable message is still main()'s job
+    // (see src/bin/cli.ts's describeError() call); this is just a signal.
+    emit({ type: "run-failed", error });
+    throw error;
+  }
+}
+
+async function runPipelineInner(
+  artistName: string,
+  options: RunOptions,
+  emit: (event: PipelineEvent) => void,
+): Promise<void> {
+  const pipelineStartedAt = Date.now();
+  const onRetry = (attempt: number, maxRetries: number, delayMs: number): void =>
+    emit({ type: "musicbrainz-retry", attempt, maxRetries, delayMs });
 
   emit({ type: "artist-resolving", query: artistName });
-  const artist = await searchArtist(artistName);
+  const artist = await searchArtist(artistName, onRetry);
   const artistSlug = slugify(artist.name);
   emit({ type: "artist-resolved", name: artist.name, disambiguation: artist.disambiguation });
 
@@ -51,6 +71,7 @@ export async function runPipeline(artistName: string, options: RunOptions = {}):
     tracks = await getDiscography(artist.id, {
       includeNonAlbums: options.includeNonAlbums,
       onProgress: (done, total) => emit({ type: "discography-progress", done, total }),
+      onRetry,
     });
     await writeJsonCache(discographyCachePath, tracks);
   }

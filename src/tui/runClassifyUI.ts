@@ -2,7 +2,14 @@ import React from "react";
 import { render } from "ink";
 import { runPipeline, type RunOptions } from "../pipeline.js";
 import type { PipelineEvent } from "../pipeline-events.js";
+import { sleep } from "../util.js";
 import { App } from "./App.js";
+
+// Gives React a moment to actually paint the "run-failed"/"classify-failed"
+// state (a red line in the live view) before we tear it down — otherwise
+// unmount() can race the event that triggered it, erasing a frame that
+// never got drawn and leaving nothing to explain why the app just vanished.
+const ERROR_PAINT_MS = 300;
 
 export interface RunClassifyUIOptions {
   /** Once done, morph into the full dashboard (default) or just a one-line summary — mirrors --no-visualize. */
@@ -47,6 +54,7 @@ export async function runClassifyUI(
       },
     });
   } catch (error) {
+    await sleep(ERROR_PAINT_MS);
     instance.unmount();
     throw error;
   }

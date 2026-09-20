@@ -116,10 +116,22 @@ async function printFinalOutput(artist: string, showDashboard: boolean): Promise
   console.log(renderHeader(data, colorsEnabled()));
 }
 
+/** A rate-limit retry is worth a line even in the default quiet mode — silently eating up to ~31s otherwise looks like a hang. */
+function logRetriesOnly(event: PipelineEvent): void {
+  if (event.type === "musicbrainz-retry") {
+    console.warn(
+      `MusicBrainz rate-limited (503), retrying in ${event.delayMs}ms (attempt ${event.attempt}/${event.maxRetries})...`,
+    );
+  }
+}
+
 /** Replicates the plain-text progress log the live dashboard replaces, for --verbose and non-TTY output. */
 function createPlainLogger(artistQuery: string): (event: PipelineEvent) => void {
   return (event) => {
     switch (event.type) {
+      case "musicbrainz-retry":
+        logRetriesOnly(event);
+        break;
       case "artist-resolved":
         console.log(`Resolved "${artistQuery}" -> ${event.name}${event.disambiguation ? ` (${event.disambiguation})` : ""}`);
         break;
@@ -200,7 +212,7 @@ async function runClassifyCommand(argv: string[]): Promise<void> {
     // nothing further to print here (see src/tui/App.tsx).
     await runClassifyUI(args.artist, runOptions, { showDashboard });
   } else {
-    await runPipeline(args.artist, runOptions);
+    await runPipeline(args.artist, { ...runOptions, onEvent: logRetriesOnly });
     await printFinalOutput(args.artist, showDashboard);
   }
 }

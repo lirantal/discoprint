@@ -19,7 +19,10 @@ let lastRequestAt = 0;
 const MAX_RETRIES = Number(process.env.MUSICBRAINZ_MAX_RETRIES ?? 5);
 const RETRY_BASE_MS = Number(process.env.MUSICBRAINZ_RETRY_BASE_MS ?? 1000);
 
-async function mbFetch<T>(path: string): Promise<T> {
+/** Called before each retry sleep — lets callers surface it however they render progress, instead of us assuming a console is safe to write to. */
+export type RetryListener = (attempt: number, maxRetries: number, delayMs: number) => void;
+
+async function mbFetch<T>(path: string, onRetry?: RetryListener): Promise<T> {
   for (let attempt = 0; ; attempt++) {
     const wait = MIN_INTERVAL_MS - (Date.now() - lastRequestAt);
     if (wait > 0) await sleep(wait);
@@ -40,9 +43,7 @@ async function mbFetch<T>(path: string): Promise<T> {
 
     if (res.status === 503 && attempt < MAX_RETRIES) {
       const backoff = RETRY_BASE_MS * 2 ** attempt;
-      console.warn(
-        `MusicBrainz rate-limited (503), retrying in ${backoff}ms (attempt ${attempt + 1}/${MAX_RETRIES})...`,
-      );
+      onRetry?.(attempt + 1, MAX_RETRIES, backoff);
       await sleep(backoff);
       continue;
     }
@@ -63,9 +64,9 @@ export interface ResolvedArtist {
   disambiguation?: string;
 }
 
-export async function searchArtist(name: string): Promise<ResolvedArtist> {
+export async function searchArtist(name: string, onRetry?: RetryListener): Promise<ResolvedArtist> {
   const query = encodeURIComponent(`artist:"${name}"`);
-  const data = await mbFetch<ArtistSearchResponse>(`/artist/?query=${query}&fmt=json&limit=5`);
+  const data = await mbFetch<ArtistSearchResponse>(`/artist/?query=${query}&fmt=json&limit=5`, onRetry);
   const best = data.artists[0];
   if (!best) {
     throw new KnownError(
@@ -93,7 +94,7 @@ interface ReleaseGroup {
 }
 
 /** Album/EP release-groups only, excluding compilations/live/remix/demo noise by default. */
-async function getReleaseGroups(artistId: string, includeNonAlbums: boolean): Promise<ReleaseGroup[]> {
+async function getReleaseGroups(artistId: string, includeNonAlbums: boolean, onRetry?: RetryListener): Promise<ReleaseGroup[]> {
   // "Demo" matters in practice, not just in principle: MusicBrainz has pre-fame
   // demo tapes for some artists mis-dated years before their real debut (e.g.
   // Madonna has one tagged 1980, 3 years before her 1983 debut album), which
@@ -116,6 +117,7 @@ async function getReleaseGroups(artistId: string, includeNonAlbums: boolean): Pr
     const type = includeNonAlbums ? "" : "&type=album|ep";
     const data = await mbFetch<ReleaseGroupsResponse>(
       `/release-group?artist=${artistId}${type}&fmt=json&limit=${limit}&offset=${offset}`,
+      onRetry,
     );
     for (const rg of data["release-groups"]) {
       if (!includeNonAlbums && rg["secondary-types"]?.some((t) => excludedSecondary.has(t))) continue;
@@ -137,8 +139,11 @@ interface ReleaseBrowseResponse {
   }>;
 }
 
-async function getTracksForReleaseGroup(rg: ReleaseGroup): Promise<Track[]> {
-  const data = await mbFetch<ReleaseBrowseResponse>(`/release?release-group=${rg.id}&inc=recordings&fmt=json&limit=1`);
+async function getTracksForReleaseGroup(rg: ReleaseGroup, onRetry?: RetryListener): Promise<Track[]> {
+  const data = await mbFetch<ReleaseBrowseResponse>(
+    `/release?release-group=${rg.id}&inc=recordings&fmt=json&limit=1`,
+    onRetry,
+  );
   const release = data.releases[0];
   if (!release) return [];
 
@@ -164,13 +169,17 @@ async function getTracksForReleaseGroup(rg: ReleaseGroup): Promise<Track[]> {
  */
 export async function getDiscography(
   artistId: string,
-  options: { includeNonAlbums?: boolean; onProgress?: (done: number, total: number) => void } = {},
+  options: {
+    includeNonAlbums?: boolean;
+    onProgress?: (done: number, total: number) => void;
+    onRetry?: RetryListener;
+  } = {},
 ): Promise<Track[]> {
-  const releaseGroups = await getReleaseGroups(artistId, options.includeNonAlbums ?? false);
+  const releaseGroups = await getReleaseGroups(artistId, options.includeNonAlbums ?? false, options.onRetry);
 
   const seen = new Map<string, Track>();
   for (const [i, rg] of releaseGroups.entries()) {
-    const tracks = await getTracksForReleaseGroup(rg);
+    const tracks = await getTracksForReleaseGroup(rg, options.onRetry);
     for (const track of tracks) {
       if (!seen.has(track.normalizedTitle)) {
         seen.set(track.normalizedTitle, track);

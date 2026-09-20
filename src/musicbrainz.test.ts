@@ -68,6 +68,24 @@ test("searchArtist", async (t) => {
     assert.equal(artist.name, "Radiohead");
     assert.equal(calls, 3);
   });
+
+  await t.test("reports each retry via onRetry instead of writing to the console itself", async () => {
+    let calls = 0;
+    t.mock.method(globalThis, "fetch", async () => {
+      calls++;
+      if (calls < 3) return new Response("", { status: 503 });
+      return jsonResponse({ artists: [{ id: "artist-1", name: "Radiohead", score: 100 }] });
+    });
+
+    const retries: Array<[number, number, number]> = [];
+    await searchArtist("Radiohead", (attempt, maxRetries, delayMs) => retries.push([attempt, maxRetries, delayMs]));
+
+    assert.equal(retries.length, 2);
+    assert.deepEqual(
+      retries.map((r) => r[0]),
+      [1, 2],
+    );
+  });
 });
 
 test("getDiscography", async (t) => {

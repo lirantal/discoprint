@@ -16,6 +16,8 @@ export interface AppState {
   discographyProgress?: { done: number; total: number };
   discographyTrackCount?: number;
   lyricsProgress?: { done: number; total: number; track: string };
+  /** Cleared as soon as anything other than another retry happens — it's only meaningful while the retried operation is still pending. */
+  retryNotice?: { attempt: number; maxRetries: number; delayMs: number };
   totalToClassify: number;
   queuedById: Map<string, QueuedSong>;
   inFlight: Map<string, string>;
@@ -41,9 +43,18 @@ export function initialState(artistQuery: string): AppState {
 }
 
 export function reduce(state: AppState, event: PipelineEvent): AppState {
+  // Retries are only meaningful while the operation they belong to is still
+  // pending — any other event means we've moved past whatever was retrying.
+  if (event.type !== "musicbrainz-retry" && state.retryNotice) {
+    state = { ...state, retryNotice: undefined };
+  }
+
   switch (event.type) {
     case "artist-resolving":
       return { ...state, phase: "resolving-artist" };
+
+    case "musicbrainz-retry":
+      return { ...state, retryNotice: { attempt: event.attempt, maxRetries: event.maxRetries, delayMs: event.delayMs } };
 
     case "artist-resolved":
       return { ...state, artistName: event.name, disambiguation: event.disambiguation };
@@ -116,6 +127,9 @@ export function reduce(state: AppState, event: PipelineEvent): AppState {
 
     case "run-completed":
       return { ...state, phase: "done", meta: event.meta, skippedCount: event.skippedCount };
+
+    case "run-failed":
+      return { ...state, phase: "error", errorMessage: describeError(event.error).message };
 
     default:
       return state;

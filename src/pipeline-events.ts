@@ -17,6 +17,10 @@ export interface QueuedSong {
 export type PipelineEvent =
   | { type: "artist-resolving"; query: string }
   | { type: "artist-resolved"; name: string; disambiguation?: string }
+  // MusicBrainz's own 503 specifically means "rate limited" (see musicbrainz.ts)
+  // — surfaced as a data event rather than a direct console.warn so it doesn't
+  // corrupt Ink's redraw bookkeeping by writing outside its managed region.
+  | { type: "musicbrainz-retry"; attempt: number; maxRetries: number; delayMs: number }
   | { type: "discography-fetching" }
   | { type: "discography-progress"; done: number; total: number }
   | { type: "discography-resolved"; trackCount: number }
@@ -27,4 +31,6 @@ export type PipelineEvent =
   | { type: "classify-started"; id: string }
   | { type: "classify-completed"; id: string; classification: SongClassification; usage: JevUsage }
   | { type: "classify-failed"; id: string; error: unknown }
-  | { type: "run-completed"; meta: ClassificationRunMeta; skippedCount: number; totalConsidered: number };
+  | { type: "run-completed"; meta: ClassificationRunMeta; skippedCount: number; totalConsidered: number }
+  /** Fired for any failure that aborts the whole run — before rethrowing so the last known state doesn't just freeze mid-spin. */
+  | { type: "run-failed"; error: unknown };

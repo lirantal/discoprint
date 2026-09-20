@@ -119,6 +119,24 @@ test("reduce", async (t) => {
     assert.equal(state.errorMessage, "boom");
   });
 
+  await t.test("musicbrainz-retry sets a retry notice, cleared by the next non-retry event", () => {
+    let state = reduce(initialState("x"), { type: "musicbrainz-retry", attempt: 1, maxRetries: 5, delayMs: 1000 });
+    assert.deepEqual(state.retryNotice, { attempt: 1, maxRetries: 5, delayMs: 1000 });
+
+    state = reduce(state, { type: "musicbrainz-retry", attempt: 2, maxRetries: 5, delayMs: 2000 });
+    assert.deepEqual(state.retryNotice, { attempt: 2, maxRetries: 5, delayMs: 2000 });
+
+    state = reduce(state, { type: "artist-resolved", name: "Radiohead" });
+    assert.equal(state.retryNotice, undefined);
+  });
+
+  await t.test("run-failed sets phase to error with a friendly message, independent of classify-failed", () => {
+    const state = reduce(initialState("x"), { type: "run-failed", error: new Error("network down") });
+    assert.equal(state.phase, "error");
+    assert.equal(state.errorMessage, "network down");
+    assert.equal(state.inFlight.size, 0);
+  });
+
   await t.test("run-completed sets phase to done and carries the final meta + skipped count", () => {
     const meta = {
       artist: "x",

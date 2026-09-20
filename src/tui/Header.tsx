@@ -4,6 +4,11 @@ import { useElapsedMs, useSpinnerFrame } from "./hooks.js";
 import type { AppState } from "./state.js";
 
 function phaseLabel(state: AppState): string {
+  if (state.retryNotice) {
+    const { attempt, maxRetries, delayMs } = state.retryNotice;
+    return `MusicBrainz rate-limited, retrying in ${(delayMs / 1000).toFixed(0)}s… (${attempt}/${maxRetries})`;
+  }
+
   switch (state.phase) {
     case "resolving-artist":
       return `Resolving "${state.artistQuery}"…`;
