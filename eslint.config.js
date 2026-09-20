@@ -14,6 +14,7 @@ export default defineConfig([
     ".vscode/**",
     ".husky/**",
     "data/**",
+    "apm_modules/**",
   ]),
   js.configs.recommended,
   ...tseslint.configs.recommended,

@@ -79,7 +79,9 @@ export function App({ artistQuery, subscribe, showDashboard = true }: AppProps):
   if (finalData) {
     return (
       <Static items={["final-dashboard"]}>
-        {(key) => (showDashboard ? <Dashboard key={key} data={finalData} /> : <DashboardHeader key={key} data={finalData} />)}
+        {(key) =>
+          showDashboard ? <Dashboard key={key} data={finalData} /> : <DashboardHeader key={key} data={finalData} />
+        }
       </Static>
     );
   }

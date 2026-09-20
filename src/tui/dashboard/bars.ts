@@ -52,7 +52,7 @@ export function moodBar(value: number, max: number, width: number): Bar {
   const remainder = totalEighths - fullBlocks * 8;
 
   let filled = "█".repeat(fullBlocks);
-  if (fullBlocks < width && remainder > 0) filled += (EIGHTHS[remainder] ?? "");
+  if (fullBlocks < width && remainder > 0) filled += EIGHTHS[remainder] ?? "";
   const empty = "░".repeat(Math.max(0, width - filled.length));
 
   return { filled, empty, color: moodGradientHex(t) };
@@ -70,7 +70,11 @@ export interface ThemeMixSegment {
 }
 
 /** Proportional-width colored segments for the theme mix bar, drift-corrected so they always sum to exactly `barWidth`. */
-export function themeMixSegments(themeDistribution: ThemeDistributionEntry[], totalSongs: number, barWidth: number): ThemeMixSegment[] {
+export function themeMixSegments(
+  themeDistribution: ThemeDistributionEntry[],
+  totalSongs: number,
+  barWidth: number,
+): ThemeMixSegment[] {
   if (totalSongs === 0) return [];
 
   const segments = themeDistribution.map((entry) => ({

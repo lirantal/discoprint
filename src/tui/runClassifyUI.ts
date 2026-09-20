@@ -41,9 +41,7 @@ export async function runClassifyUI(
     return () => listeners.delete(listener);
   };
 
-  const instance = render(
-    React.createElement(App, { artistQuery, subscribe, showDashboard: uiOptions.showDashboard }),
-  );
+  const instance = render(React.createElement(App, { artistQuery, subscribe, showDashboard: uiOptions.showDashboard }));
 
   try {
     await runPipeline(artistQuery, {

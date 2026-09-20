@@ -37,7 +37,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint . && pnpm run lint:markdown",
     "lint:fix": "eslint . --fix",
-    "lint:markdown": "markdownlint -c .github/.markdownlint.yml -i '.git' -i 'node_modules' -i 'dist' -i 'coverage' '**/*.md'",
+    "lint:markdown": "markdownlint -c .github/.markdownlint.yml -i '.git' -i 'node_modules' -i 'dist' -i 'coverage' -i 'apm_modules' '**/*.md'",
     "lint:markdown:fix": "pnpm run lint:markdown -- --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

@@ -133,7 +133,9 @@ function createPlainLogger(artistQuery: string): (event: PipelineEvent) => void 
         logRetriesOnly(event);
         break;
       case "artist-resolved":
-        console.log(`Resolved "${artistQuery}" -> ${event.name}${event.disambiguation ? ` (${event.disambiguation})` : ""}`);
+        console.log(
+          `Resolved "${artistQuery}" -> ${event.name}${event.disambiguation ? ` (${event.disambiguation})` : ""}`,
+        );
         break;
       case "discography-fetching":
         console.log("Fetching discography from MusicBrainz (1 request/sec, this takes a while)...");

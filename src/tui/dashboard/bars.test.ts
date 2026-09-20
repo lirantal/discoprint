@@ -107,7 +107,12 @@ test("albumStrip", async (t) => {
   });
 
   await t.test("truncates with an ellipsis when the album has more songs than the strip width", () => {
-    const album: AlbumGroup = { album: "A", songs: Array.from({ length: 10 }, () => song()), avgMood: 2, avgComplexity: 1 };
+    const album: AlbumGroup = {
+      album: "A",
+      songs: Array.from({ length: 10 }, () => song()),
+      avgMood: 2,
+      avgComplexity: 1,
+    };
     const strip = albumStrip(album, 5);
     assert.equal(strip.length, 5);
     assert.equal(strip.at(-1)?.char, "…");

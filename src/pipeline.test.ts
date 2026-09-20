@@ -171,7 +171,9 @@ test("runPipeline emits classify-queued/started/completed for cached songs too, 
 
   assert.ok(events.some((e) => e.type === "classify-queued"));
   assert.ok(events.some((e) => e.type === "classify-started"));
-  const completed = events.find((e): e is Extract<PipelineEvent, { type: "classify-completed" }> => e.type === "classify-completed");
+  const completed = events.find(
+    (e): e is Extract<PipelineEvent, { type: "classify-completed" }> => e.type === "classify-completed",
+  );
   assert.ok(completed);
   assert.equal(completed.usage.inputTokens, 0);
   assert.equal(completed.usage.outputTokens, 0);
@@ -329,9 +331,7 @@ test("runPipeline classifies songs concurrently, so classification wall time isn
 
   await runPipeline("Concurrency Artist", {});
 
-  const meta = JSON.parse(
-    await readFile(join(tmpDir, "data", "output", "concurrency-artist-meta.json"), "utf-8"),
-  );
+  const meta = JSON.parse(await readFile(join(tmpDir, "data", "output", "concurrency-artist-meta.json"), "utf-8"));
   assert.equal(meta.songsClassifiedThisRun, SONG_COUNT);
   // If calls ran sequentially this would take >= SONG_COUNT * CALL_DELAY_MS;
   // concurrently, it should take roughly one call's worth of time.

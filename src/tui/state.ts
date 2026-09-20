@@ -54,7 +54,10 @@ export function reduce(state: AppState, event: PipelineEvent): AppState {
       return { ...state, phase: "resolving-artist" };
 
     case "musicbrainz-retry":
-      return { ...state, retryNotice: { attempt: event.attempt, maxRetries: event.maxRetries, delayMs: event.delayMs } };
+      return {
+        ...state,
+        retryNotice: { attempt: event.attempt, maxRetries: event.maxRetries, delayMs: event.delayMs },
+      };
 
     case "artist-resolved":
       return { ...state, artistName: event.name, disambiguation: event.disambiguation };

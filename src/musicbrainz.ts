@@ -94,21 +94,17 @@ interface ReleaseGroup {
 }
 
 /** Album/EP release-groups only, excluding compilations/live/remix/demo noise by default. */
-async function getReleaseGroups(artistId: string, includeNonAlbums: boolean, onRetry?: RetryListener): Promise<ReleaseGroup[]> {
+async function getReleaseGroups(
+  artistId: string,
+  includeNonAlbums: boolean,
+  onRetry?: RetryListener,
+): Promise<ReleaseGroup[]> {
   // "Demo" matters in practice, not just in principle: MusicBrainz has pre-fame
   // demo tapes for some artists mis-dated years before their real debut (e.g.
   // Madonna has one tagged 1980, 3 years before her 1983 debut album), which
   // would otherwise sort first and get grabbed by --limit ahead of anything
   // that actually has lyrics on lrclib.
-  const excludedSecondary = new Set([
-    "Compilation",
-    "Live",
-    "Remix",
-    "Soundtrack",
-    "Interview",
-    "Spokenword",
-    "Demo",
-  ]);
+  const excludedSecondary = new Set(["Compilation", "Live", "Remix", "Soundtrack", "Interview", "Spokenword", "Demo"]);
   const groups: ReleaseGroup[] = [];
   let offset = 0;
   const limit = 100;

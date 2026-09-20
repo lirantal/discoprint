@@ -184,7 +184,7 @@ and [src/viz/colors.ts](src/viz/colors.ts) (hex colors, gradient interpolation)
 are renderer-independent too, so an HTML version would reuse the same palette
 and just emit CSS instead of ANSI escapes.
 
-The same split applies to the *live* classify view: [src/pipeline.ts](src/pipeline.ts)
+The same split applies to the _live_ classify view: [src/pipeline.ts](src/pipeline.ts)
 never touches the terminal — it reports progress as a plain `PipelineEvent`
 stream ([src/pipeline-events.ts](src/pipeline-events.ts)) and stays exactly as
 testable as before. [src/bin/cli.ts](src/bin/cli.ts) picks a consumer for
@@ -202,7 +202,7 @@ same dashboard (mood arc, theme legend/mix bar, adaptive song/album table,
 usage footer), styled like the rest of the live view (the same rounded-box
 `SONGS` panel, the same colors) rather than falling back to plain
 `console.log` text once the animation stops. The two renderers share their
-*data and color logic* — `resample()`/`average()` from `viz/data.ts`,
+_data and color logic_ — `resample()`/`average()` from `viz/data.ts`,
 `moodGradientHex()` from `viz/colors.ts`, `themeColor()` from
 `viz/theme-palette.ts`, and the bar/glyph math in
 [src/tui/dashboard/bars.ts](src/tui/dashboard/bars.ts) (a pure, unit-tested

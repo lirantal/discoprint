@@ -9,7 +9,11 @@ export function JevUsageFooter({ data }: { data: VisualizationData }): React.JSX
   if (!meta) return null;
 
   if (meta.songsClassifiedThisRun === 0) {
-    return <Text dimColor>jev usage  fully cached — no new Jev calls on the last run</Text>;
+    // A plain string constant, not inline JSX text — a formatter is free to
+    // collapse consecutive spaces inside JSX text (prettier does), which
+    // silently ate one of these two intentional spaces once already.
+    const fullyCachedLine = "jev usage  fully cached — no new Jev calls on the last run";
+    return <Text dimColor>{fullyCachedLine}</Text>;
   }
 
   const summary = [

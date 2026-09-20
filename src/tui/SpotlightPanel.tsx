@@ -38,7 +38,13 @@ export function SpotlightPanel({
               </Text>
               <Text dimColor> {(spotlight.song.classification.themeConfidence * spotlight.progress).toFixed(2)}</Text>
             </Box>
-            <StatBar label="mood" value={spotlight.song.classification.mood} max={4} progress={spotlight.progress} color="#22c55e" />
+            <StatBar
+              label="mood"
+              value={spotlight.song.classification.mood}
+              max={4}
+              progress={spotlight.progress}
+              color="#22c55e"
+            />
             <StatBar
               label="complexity"
               value={spotlight.song.classification.complexity}
