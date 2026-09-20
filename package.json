@@ -24,6 +24,7 @@
     "node": ">=22",
     "pnpm": ">=10.26.0"
   },
+  "packageManager": "pnpm@10.34.5",
   "files": [
     "dist",
     "src"
