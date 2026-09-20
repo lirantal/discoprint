@@ -149,17 +149,21 @@ async function getTracksForReleaseGroup(rg: ReleaseGroup): Promise<Track[]> {
  * title (first/earliest release wins). One MusicBrainz request per release-group,
  * so this is slow (~1.1s/album) by design to respect their rate limit.
  */
-export async function getDiscography(artistId: string, options: { includeNonAlbums?: boolean } = {}): Promise<Track[]> {
+export async function getDiscography(
+  artistId: string,
+  options: { includeNonAlbums?: boolean; onProgress?: (done: number, total: number) => void } = {},
+): Promise<Track[]> {
   const releaseGroups = await getReleaseGroups(artistId, options.includeNonAlbums ?? false);
 
   const seen = new Map<string, Track>();
-  for (const rg of releaseGroups) {
+  for (const [i, rg] of releaseGroups.entries()) {
     const tracks = await getTracksForReleaseGroup(rg);
     for (const track of tracks) {
       if (!seen.has(track.normalizedTitle)) {
         seen.set(track.normalizedTitle, track);
       }
     }
+    options.onProgress?.(i + 1, releaseGroups.length);
   }
 
   return [...seen.values()].sort((a, b) => (a.releaseDate || "9999").localeCompare(b.releaseDate || "9999"));

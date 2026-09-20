@@ -3,34 +3,77 @@ import { searchArtist, getDiscography } from "./musicbrainz.js";
 import { fetchLyrics } from "./lrclib.js";
 import { classifySong, estimateCostUsd } from "./jev.js";
 import { readJsonCache, writeJsonCache, slugify } from "./util.js";
+import { canAnimate, startSpinner, startTaskList, type Spinner, type TaskList } from "./spinner.js";
+import { colorsEnabled, fg } from "./viz/colors.js";
+import { themeColor } from "./viz/theme-palette.js";
 import type { ClassificationRunMeta, LyricsResult, SongClassification, Track } from "./types.js";
 
 const CACHE_DIR = join(process.cwd(), "data", "cache");
 const OUTPUT_DIR = join(process.cwd(), "data", "output");
 
+// Jev has no documented per-key concurrency limit, but each systemOne call is
+// already a single batched request (all 5 questions in one shot — see
+// jev.ts), so the concurrency here is across *songs*, not within one. Kept
+// modest since it's still one HTTP request per song, in flight at once.
+const CLASSIFY_CONCURRENCY = Number(process.env.DISCOPRINT_CLASSIFY_CONCURRENCY ?? 5);
+// Above this many songs, a live per-song checklist stops being readable (and
+// risks overflowing the terminal's scrollback in ways that break the
+// cursor-position math) — fall back to a single aggregate spinner instead.
+const MAX_ANIMATED_ROWS = 20;
+
 export interface RunOptions {
   limit?: number;
   includeNonAlbums?: boolean;
   force?: boolean;
-  /** Print per-step progress (artist resolution, discography fetch, one line per song). Off by default: only a one-line summary is shown. */
+  /** Print per-step progress (artist resolution, discography fetch, one line per song) instead of live spinners/summary. */
   verbose?: boolean;
+}
+
+interface PendingClassification {
+  track: Track;
+  lyrics: string;
+  lyricsSource: SongClassification["lyricsSource"];
+  cachePath: string;
 }
 
 export async function runPipeline(artistName: string, options: RunOptions = {}): Promise<void> {
   const pipelineStartedAt = Date.now();
+  const verbose = options.verbose ?? false;
+  const animate = !verbose && canAnimate();
   const log = (message: string): void => {
-    if (options.verbose) console.log(message);
+    if (verbose) console.log(message);
   };
 
-  const artist = await searchArtist(artistName);
+  const artistSpinner = animate ? startSpinner("Resolving artist…") : undefined;
+  let artist: Awaited<ReturnType<typeof searchArtist>>;
+  try {
+    artist = await searchArtist(artistName);
+  } catch (err) {
+    artistSpinner?.stop(`✖ Could not resolve "${artistName}".`);
+    throw err;
+  }
   const artistSlug = slugify(artist.name);
-  log(`Resolved "${artistName}" -> ${artist.name}${artist.disambiguation ? ` (${artist.disambiguation})` : ""}`);
+  const artistLine = `Resolved "${artistName}" -> ${artist.name}${artist.disambiguation ? ` (${artist.disambiguation})` : ""}`;
+  artistSpinner?.stop(`✔ ${artistLine}`);
+  log(artistLine);
 
   const discographyCachePath = join(CACHE_DIR, "musicbrainz", `${artistSlug}.json`);
   let tracks = await readJsonCache<Track[]>(discographyCachePath);
   if (!tracks || options.force) {
+    const discoSpinner = animate ? startSpinner("Fetching discography from MusicBrainz…") : undefined;
     log("Fetching discography from MusicBrainz (1 request/sec, this takes a while)...");
-    tracks = await getDiscography(artist.id, { includeNonAlbums: options.includeNonAlbums });
+    try {
+      tracks = await getDiscography(artist.id, {
+        includeNonAlbums: options.includeNonAlbums,
+        onProgress: (done, total) => {
+          discoSpinner?.update(`Fetching discography from MusicBrainz… (${done}/${total} releases)`);
+        },
+      });
+    } catch (err) {
+      discoSpinner?.stop("✖ Failed to fetch discography.");
+      throw err;
+    }
+    discoSpinner?.stop(`✔ Discography resolved: ${tracks.length} unique tracks.`);
     await writeJsonCache(discographyCachePath, tracks);
   }
   log(`Discography resolved: ${tracks.length} unique tracks.`);
@@ -38,6 +81,47 @@ export async function runPipeline(artistName: string, options: RunOptions = {}):
   const limited = options.limit ? tracks.slice(0, options.limit) : tracks;
   const results: SongClassification[] = [];
   const skipped: Array<{ track: string; reason: string }> = [];
+  const pending: PendingClassification[] = [];
+
+  const lyricsSpinner =
+    animate && limited.length > 0 ? startSpinner(`Fetching lyrics… (0/${limited.length})`) : undefined;
+  try {
+    for (const [i, track] of limited.entries()) {
+      const trackSlug = slugify(track.normalizedTitle);
+      const progress = `[${i + 1}/${limited.length}]`;
+
+      const lyricsCachePath = join(CACHE_DIR, "lyrics", artistSlug, `${trackSlug}.json`);
+      let lyrics = await readJsonCache<LyricsResult>(lyricsCachePath);
+      if (!lyrics) {
+        lyrics = await fetchLyrics(artist.name, track.title);
+        await writeJsonCache(lyricsCachePath, lyrics);
+      }
+      lyricsSpinner?.update(`Fetching lyrics… (${i + 1}/${limited.length}) ${track.title}`);
+
+      if (!lyrics.plainLyrics) {
+        log(`${progress} ${track.title} - no lyrics found, skipping`);
+        skipped.push({ track: track.title, reason: "no lyrics found" });
+        continue;
+      }
+
+      const classificationCachePath = join(CACHE_DIR, "classification", artistSlug, `${trackSlug}.json`);
+      const cached = options.force ? null : await readJsonCache<SongClassification>(classificationCachePath);
+      if (cached) {
+        results.push(cached);
+      } else {
+        pending.push({
+          track,
+          lyrics: lyrics.plainLyrics,
+          lyricsSource: lyrics.source,
+          cachePath: classificationCachePath,
+        });
+      }
+    }
+  } catch (err) {
+    lyricsSpinner?.stop("✖ Failed while fetching lyrics.");
+    throw err;
+  }
+  lyricsSpinner?.stop(`✔ Lyrics ready — ${limited.length - skipped.length}/${limited.length} tracks have lyrics.`);
 
   let songsClassifiedThisRun = 0;
   let inputTokens = 0;
@@ -45,45 +129,85 @@ export async function runPipeline(artistName: string, options: RunOptions = {}):
   let classifyDurationMs = 0;
   let lastModel: string | null = null;
 
-  for (const [i, track] of limited.entries()) {
-    const trackSlug = slugify(track.normalizedTitle);
-    const progress = `[${i + 1}/${limited.length}]`;
+  async function classifyOne(item: PendingClassification): Promise<SongClassification> {
+    const result = await classifySong({
+      artist: artist.name,
+      track: item.track.title,
+      album: item.track.album,
+      releaseDate: item.track.releaseDate,
+      lyrics: item.lyrics,
+      lyricsSource: item.lyricsSource,
+    });
+    songsClassifiedThisRun += 1;
+    inputTokens += result.usage.inputTokens;
+    outputTokens += result.usage.outputTokens;
+    classifyDurationMs += result.usage.durationMs;
+    lastModel = result.usage.model;
+    await writeJsonCache(item.cachePath, result.classification);
+    return result.classification;
+  }
 
-    const lyricsCachePath = join(CACHE_DIR, "lyrics", artistSlug, `${trackSlug}.json`);
-    let lyrics = await readJsonCache<LyricsResult>(lyricsCachePath);
-    if (!lyrics) {
-      lyrics = await fetchLyrics(artist.name, track.title);
-      await writeJsonCache(lyricsCachePath, lyrics);
+  if (pending.length > 0) {
+    // Since lyrics are already on disk, classifying each song is an
+    // independent single Jev call — run several in flight at once instead of
+    // one at a time.
+    const useTaskList = animate && pending.length <= MAX_ANIMATED_ROWS;
+    const colorEnabled = colorsEnabled();
+
+    const taskList: TaskList | undefined = useTaskList
+      ? startTaskList(pending.map((item, i) => ({ id: String(i), label: item.track.title })))
+      : undefined;
+    const classifySpinner: Spinner | undefined =
+      animate && !useTaskList ? startSpinner(`Classifying songs… (0/${pending.length})`) : undefined;
+
+    let doneCount = 0;
+    let nextIndex = 0;
+    let firstError: unknown;
+    let stopRequested = false;
+
+    async function worker(): Promise<void> {
+      for (;;) {
+        if (stopRequested) return;
+        const i = nextIndex++;
+        const item = pending[i];
+        if (!item) return;
+
+        try {
+          const classification = await classifyOne(item);
+          doneCount += 1;
+          results.push(classification);
+
+          if (taskList) {
+            const { hex, label } = themeColor(classification.theme);
+            taskList.complete(
+              String(i),
+              `${fg("██", hex, colorEnabled)} ${item.track.title} — ${label}, mood ${classification.mood.toFixed(1)}`,
+            );
+          } else if (classifySpinner) {
+            classifySpinner.update(`Classifying songs… (${doneCount}/${pending.length})`);
+          } else {
+            log(
+              `[classify ${doneCount}/${pending.length}] ${item.track.title} - theme=${classification.theme} mood=${classification.mood.toFixed(2)}`,
+            );
+          }
+        } catch (err) {
+          // Let every other in-flight worker wind down cleanly (rather than
+          // leaving unhandled rejections behind) before we rethrow below.
+          firstError ??= err;
+          stopRequested = true;
+          return;
+        }
+      }
     }
 
-    if (!lyrics.plainLyrics) {
-      log(`${progress} ${track.title} - no lyrics found, skipping`);
-      skipped.push({ track: track.title, reason: "no lyrics found" });
-      continue;
-    }
+    await Promise.all(Array.from({ length: Math.min(CLASSIFY_CONCURRENCY, pending.length) }, worker));
+    taskList?.stop();
 
-    const classificationCachePath = join(CACHE_DIR, "classification", artistSlug, `${trackSlug}.json`);
-    let classification = await readJsonCache<SongClassification>(classificationCachePath);
-    if (!classification || options.force) {
-      const result = await classifySong({
-        artist: artist.name,
-        track: track.title,
-        album: track.album,
-        releaseDate: track.releaseDate,
-        lyrics: lyrics.plainLyrics,
-        lyricsSource: lyrics.source,
-      });
-      classification = result.classification;
-      songsClassifiedThisRun += 1;
-      inputTokens += result.usage.inputTokens;
-      outputTokens += result.usage.outputTokens;
-      classifyDurationMs += result.usage.durationMs;
-      lastModel = result.usage.model;
-      await writeJsonCache(classificationCachePath, classification);
+    if (firstError) {
+      classifySpinner?.stop("✖ Classification failed.");
+      throw firstError;
     }
-
-    log(`${progress} ${track.title} - theme=${classification.theme} mood=${classification.mood.toFixed(2)}`);
-    results.push(classification);
+    classifySpinner?.stop(`✔ Classified ${pending.length} song${pending.length === 1 ? "" : "s"}.`);
   }
 
   const meta: ClassificationRunMeta = {

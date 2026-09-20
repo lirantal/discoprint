@@ -53,6 +53,15 @@ default is albums + EPs only), `--force` (re-classify ignoring cached results),
 `--verbose` (print per-step progress — artist resolution, discography fetch, one
 line per song — instead of just the one-line summary shown by default).
 
+In a real terminal, each classify step animates instead of logging: a spinner
+for artist resolution and the discography/lyrics fetch, then — since lyrics
+are already on disk by that point, so classifying one song doesn't have to
+wait on another — a live checklist with one line per song being classified
+concurrently, each swapping its spinner for a colored theme/mood result as
+Jev responds. Runs over ~20 songs fall back to a single aggregate spinner
+instead, so the checklist doesn't outgrow the terminal. `--verbose`, CI, and
+non-TTY output (e.g. piped to a file) all skip the animation entirely.
+
 ## How it works
 
 1. **[MusicBrainz](https://musicbrainz.org/doc/MusicBrainz_API)** — free, keyless — resolves the artist name

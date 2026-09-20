@@ -7,6 +7,10 @@ import { join } from "node:path";
 process.env.MUSICBRAINZ_MIN_INTERVAL_MS = "0";
 process.env.LRCLIB_MIN_INTERVAL_MS = "0";
 process.env.TYPESAFE_API_KEY = "test-key";
+// runPipeline's default (non-verbose) output is spinners/animations when
+// stdout is a real TTY. Force the non-animated path regardless of how this
+// test happens to be invoked, so output stays deterministic either way.
+process.env.CI = "1";
 
 const originalCwd = process.cwd();
 const tmpDir = await mkdtemp(join(tmpdir(), "alc-pipeline-test-"));
