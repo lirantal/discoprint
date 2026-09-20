@@ -128,6 +128,17 @@ test("runPipeline populates every cache layer on a fresh run", async (t) => {
 
   const skipped = JSON.parse(await readFile(join(tmpDir, "data", "output", "test-artist-skipped.json"), "utf-8"));
   assert.deepEqual(skipped, [{ track: "Song Two", reason: "no lyrics found" }]);
+
+  const meta = JSON.parse(await readFile(join(tmpDir, "data", "output", "test-artist-meta.json"), "utf-8"));
+  assert.equal(meta.artist, "Test Artist");
+  assert.equal(meta.model, "jev-latest");
+  assert.equal(meta.songsClassifiedThisRun, 1);
+  assert.equal(meta.totalSongsInOutput, 1);
+  assert.deepEqual(meta.tokens, { input: 50, output: 8 });
+  assert.ok(meta.estimatedCostUsd > 0);
+  assert.ok(meta.durationMs.classification >= 0);
+  assert.ok(meta.durationMs.total >= meta.durationMs.classification);
+  assert.ok(!Number.isNaN(Date.parse(meta.generatedAt)));
 });
 
 test("runPipeline rerun only re-resolves the artist; discography/lyrics/classification stay cached", async (t) => {
@@ -139,6 +150,14 @@ test("runPipeline rerun only re-resolves the artist; discography/lyrics/classifi
   assert.equal(output.length, 1);
   assert.equal(output[0].track, "Song One");
   assert.equal(output[0].theme, "party_fun"); // unchanged from the first run
+
+  // Nothing was actually classified this run, so the meta reflects zero new Jev usage.
+  const meta = JSON.parse(await readFile(join(tmpDir, "data", "output", "test-artist-meta.json"), "utf-8"));
+  assert.equal(meta.model, null);
+  assert.equal(meta.songsClassifiedThisRun, 0);
+  assert.equal(meta.totalSongsInOutput, 1);
+  assert.deepEqual(meta.tokens, { input: 0, output: 0 });
+  assert.equal(meta.estimatedCostUsd, 0);
 });
 
 test("runPipeline --force re-fetches discography and re-classifies, but not lyrics", async (t) => {

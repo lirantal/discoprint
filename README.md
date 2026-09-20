@@ -67,13 +67,13 @@ below for exactly what's cached and what re-triggers a real network call.
 
 ## Caching
 
-| Step                                 | Cached?                 | Where                                                       | Re-fetched by                                                |
-| ------------------------------------ | ----------------------- | ----------------------------------------------------------- | ------------------------------------------------------------ |
-| Resolve artist name → MusicBrainz ID | No — always a live call | —                                                           | every run, unconditionally                                   |
-| Fetch discography (albums/tracks)    | Yes                     | `data/cache/musicbrainz/<artist-slug>.json`                 | `--force`                                                    |
-| Fetch lyrics per song                | Yes                     | `data/cache/lyrics/<artist-slug>/<track-slug>.json`         | nothing — delete the file yourself to retry a specific track |
-| Classify a song with Jev             | Yes                     | `data/cache/classification/<artist-slug>/<track-slug>.json` | `--force`                                                    |
-| Final output                         | —                       | `data/output/<artist-slug>.json` (+ `-skipped.json`)        | rewritten on every run from whatever was cached/fetched      |
+| Step                                 | Cached?                 | Where                                                              | Re-fetched by                                                |
+| ------------------------------------ | ----------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------ |
+| Resolve artist name → MusicBrainz ID | No — always a live call | —                                                                  | every run, unconditionally                                   |
+| Fetch discography (albums/tracks)    | Yes                     | `data/cache/musicbrainz/<artist-slug>.json`                        | `--force`                                                    |
+| Fetch lyrics per song                | Yes                     | `data/cache/lyrics/<artist-slug>/<track-slug>.json`                | nothing — delete the file yourself to retry a specific track |
+| Classify a song with Jev             | Yes                     | `data/cache/classification/<artist-slug>/<track-slug>.json`        | `--force`                                                    |
+| Final output                         | —                       | `data/output/<artist-slug>.json` (+ `-skipped.json`, `-meta.json`) | rewritten on every run from whatever was cached/fetched      |
 
 So `discoprint "Bon Jovi" --limit 10`, once those 10 songs are already
 classified, makes exactly one real network call (the artist lookup) and
@@ -130,6 +130,13 @@ automatically right after classifying:
     fixed-width strip of theme-colored blocks (one per song) plus the
     album's averaged mood/complexity — so a 200-song discography still
     renders in a couple dozen lines, no scrolling
+- **jev usage footer** — stats from the most recent classify run: song count,
+  resolved model (e.g. `jev-1.13.0` — the concrete version behind the
+  `jev-latest` alias), input/output tokens, estimated cost, and time spent
+  classifying. Read from `data/output/<artist-slug>-meta.json`, so it shows
+  up even on a `visualize`-only invocation that makes no API calls itself. If
+  the last run was fully served from cache, it says so instead of showing
+  zeroes.
 
 Color is truecolor ANSI (24-bit), disabled automatically when `NO_COLOR` is
 set or output isn't a TTY (e.g. piped to a file).
@@ -238,6 +245,10 @@ they're thin wrappers with no logic worth mocking `process.exit` for.
 - Costs scale with API pricing per `systemOne` call; each track is one call
   batching all 5 questions (much cheaper than 5 separate calls — see TypeSafe's
   [parallel questions cookbook](https://docs.typesafe.ai/cookbooks/parallel_questions)).
+  The cost shown in the "jev usage" footer is estimated client-side from
+  input-token count × the [published per-million-token price](https://docs.typesafe.ai/models.md)
+  (output tokens are free) — the API itself doesn't return a cost field. See
+  the pricing constant in [src/jev.ts](src/jev.ts) if TypeSafe's rate changes.
 - MusicBrainz occasionally returns `503` even when you're well within the 1
   req/sec limit — per their own docs that specifically means "rate limited,"
   usually from other traffic sharing your egress IP (common on shared/cloud

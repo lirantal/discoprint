@@ -54,6 +54,12 @@ export function renderTerminal(data: VisualizationData, options: TerminalRenderO
     for (const album of data.albums) lines.push(renderAlbumRow(album, width, colorEnabled));
   }
 
+  const usageStats = renderUsageStats(data, colorEnabled);
+  if (usageStats.length > 0) {
+    lines.push("");
+    lines.push(...usageStats);
+  }
+
   return lines;
 }
 
@@ -249,4 +255,44 @@ function renderAlbumRow(album: AlbumGroup, width: number, colorEnabled: boolean)
 /** Length ignoring ANSI escape sequences — needed to wrap/pad colored strings correctly. */
 function visibleLength(text: string): number {
   return text.replace(/\[[0-9;]*m/g, "").length;
+}
+
+function formatTokenCount(count: number): string {
+  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
+  if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K`;
+  return String(count);
+}
+
+function formatDuration(ms: number): string {
+  return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
+}
+
+function formatUsd(amountUsd: number): string {
+  if (amountUsd === 0) return "$0.00";
+  return amountUsd < 0.01 ? `$${amountUsd.toFixed(4)}` : `$${amountUsd.toFixed(2)}`;
+}
+
+/** A footer summarizing Jev usage/cost/timing from the most recent classify run, if any. */
+function renderUsageStats(data: VisualizationData, colorEnabled: boolean): string[] {
+  const meta = data.lastRunMeta;
+  if (!meta) return [];
+
+  const label = dim("jev usage  ", colorEnabled);
+
+  if (meta.songsClassifiedThisRun === 0) {
+    return [`${label}${dim("fully cached — no new Jev calls on the last run", colorEnabled)}`];
+  }
+
+  const summary = [
+    `${meta.songsClassifiedThisRun} song${meta.songsClassifiedThisRun === 1 ? "" : "s"} classified`,
+    meta.model ?? "unknown model",
+    `${formatTokenCount(meta.tokens.input)} in / ${formatTokenCount(meta.tokens.output)} out tok`,
+  ].join(" · ");
+
+  const cost = fg(`~${formatUsd(meta.estimatedCostUsd)}`, "#22c55e", colorEnabled);
+  const timing = `${formatDuration(meta.durationMs.classification)} classifying`;
+
+  return [
+    `${label}${dim(summary, colorEnabled)}${dim(" · ", colorEnabled)}${cost}${dim(` · ${timing}`, colorEnabled)}`,
+  ];
 }
