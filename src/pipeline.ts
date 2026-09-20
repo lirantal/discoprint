@@ -83,8 +83,9 @@ export async function runPipeline(artistName: string, options: RunOptions = {}):
   const skipped: Array<{ track: string; reason: string }> = [];
   const pending: PendingClassification[] = [];
 
-  const lyricsSpinner =
-    animate && limited.length > 0 ? startSpinner(`Fetching lyrics… (0/${limited.length})`) : undefined;
+  // Lazily started: if every track's lyrics are already cached, nothing is
+  // actually fetched, so there's nothing worth animating either.
+  let lyricsSpinner: Spinner | undefined;
   try {
     for (const [i, track] of limited.entries()) {
       const trackSlug = slugify(track.normalizedTitle);
@@ -93,6 +94,7 @@ export async function runPipeline(artistName: string, options: RunOptions = {}):
       const lyricsCachePath = join(CACHE_DIR, "lyrics", artistSlug, `${trackSlug}.json`);
       let lyrics = await readJsonCache<LyricsResult>(lyricsCachePath);
       if (!lyrics) {
+        lyricsSpinner ??= animate ? startSpinner(`Fetching lyrics… (${i + 1}/${limited.length})`) : undefined;
         lyrics = await fetchLyrics(artist.name, track.title);
         await writeJsonCache(lyricsCachePath, lyrics);
       }

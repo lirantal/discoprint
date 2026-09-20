@@ -104,6 +104,7 @@ async function runVisualizeCommand(argv: string[]): Promise<void> {
 
 async function runClassifyCommand(argv: string[]): Promise<void> {
   const args = parseClassifyArgs(argv);
+  const wasInteractive = !args.artist;
 
   if (!args.artist) {
     args.artist = await resolveArtistInteractively("Which artist or band?");
@@ -112,6 +113,8 @@ async function runClassifyCommand(argv: string[]): Promise<void> {
       const limitAnswer = await promptText({
         title: "How many songs to classify?",
         summaryLabel: "Limit",
+        // The typed (or defaulted) value is already visible right above, echoed by the prompt itself.
+        printSummary: false,
         defaultValue: String(DEFAULT_LIMIT),
         validate: (value) =>
           Number.isInteger(Number(value)) && Number(value) > 0 ? undefined : "Enter a positive whole number.",
@@ -123,6 +126,9 @@ async function runClassifyCommand(argv: string[]): Promise<void> {
       }
     }
   }
+
+  // Separates the prompt Q&A above from the classify run's own output below.
+  if (wasInteractive) console.log();
 
   // Loaded lazily and only on this path: `visualize` alone needs no API key.
   // See .env.schema and https://varlock.dev.

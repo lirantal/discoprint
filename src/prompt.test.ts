@@ -96,6 +96,25 @@ test("promptText", async (t) => {
     assert.deepEqual(result, { status: "submitted", value: "100" });
   });
 
+  await t.test("printSummary: false suppresses the '<label>: <value>' echo line", async () => {
+    const input = fakeTty();
+    const output = fakeTty();
+    const out = collect(output);
+
+    const pending = promptText({
+      title: "How many songs to classify?",
+      summaryLabel: "Limit",
+      printSummary: false,
+      input,
+      output,
+    });
+    input.write("5\n");
+    const result = await pending;
+
+    assert.deepEqual(result, { status: "submitted", value: "5" });
+    assert.doesNotMatch(out.text(), /Limit: 5/);
+  });
+
   await t.test("cancels when the input stream closes without an answer", async () => {
     const input = fakeTty();
     const output = fakeTty();

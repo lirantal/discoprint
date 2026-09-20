@@ -60,6 +60,8 @@ export interface TextPromptOptions {
   details?: readonly string[];
   defaultValue?: string;
   summaryLabel: string;
+  /** Print "<summaryLabel>: <value>" after a submitted answer. Default true; set false when the typed value is already visible above (e.g. echoed back by the terminal) and repeating it adds nothing. */
+  printSummary?: boolean;
   validate?: (value: string) => string | undefined;
   input?: PromptInput;
   output?: PromptOutput;
@@ -131,7 +133,10 @@ export async function promptText(options: TextPromptOptions): Promise<TextPrompt
     const error = options.validate?.(value);
 
     if (error === undefined) {
-      output.write(`${formatPromptEnd()}\n${options.summaryLabel}: ${value}\n`);
+      output.write(`${formatPromptEnd()}\n`);
+      if (options.printSummary ?? true) {
+        output.write(`${options.summaryLabel}: ${value}\n`);
+      }
       return { status: "submitted", value };
     }
 
