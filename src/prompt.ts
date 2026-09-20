@@ -3,6 +3,7 @@
 // line-based text prompt, since we only need open text input here (no arrow-key
 // select/multi-select, so no raw-mode terminal handling is needed).
 import { createInterface } from "node:readline";
+import { isCiEnvironment } from "./tty.js";
 
 const ansi = {
   bold: "[1m",
@@ -39,11 +40,6 @@ function formatPromptDetailLine(detail: string, enabled = true): string {
 
 type PromptInput = NodeJS.ReadableStream & { isTTY?: boolean };
 type PromptOutput = NodeJS.WritableStream & { isTTY?: boolean };
-
-function isCiEnvironment(env: NodeJS.ProcessEnv): boolean {
-  const ci = env.CI;
-  return ci !== undefined && ci !== "" && ci !== "0" && ci !== "false";
-}
 
 export function canPromptInteractively(
   input: PromptInput = process.stdin,

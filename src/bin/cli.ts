@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 import { join } from "node:path";
 import { describeError, KnownError } from "../errors.js";
+import type { PipelineEvent } from "../pipeline-events.js";
 import { runPipeline } from "../pipeline.js";
 import { canPromptInteractively, promptText } from "../prompt.js";
+import { runClassifyUI } from "../tui/runClassifyUI.js";
+import { canAnimate } from "../tty.js";
 import { slugify } from "../util.js";
 import { colorsEnabled } from "../viz/colors.js";
 import { loadVisualizationData } from "../viz/data.js";
@@ -15,8 +18,8 @@ const USAGE = `Usage:
   discoprint [Artist Name] [--limit N] [--include-non-albums] [--force] [--no-visualize] [--verbose]
     Classify an artist's discography with Jev, then show the visualization.
     With no artist and a real terminal, prompts interactively instead.
-    By default only a one-line summary is printed; pass --verbose for
-    per-song progress (artist resolution, discography fetch, one line per song).
+    In a real terminal, progress renders as a live dashboard; pass --verbose
+    for a plain-text log instead (or when output isn't a terminal).
 
   discoprint visualize [Artist Name]
     Re-render the visualization from already-classified data. No network calls.`;
@@ -102,6 +105,47 @@ async function runVisualizeCommand(argv: string[]): Promise<void> {
   await printVisualization(artist);
 }
 
+/** Replicates the plain-text progress log the live dashboard replaces, for --verbose and non-TTY output. */
+function createPlainLogger(artistQuery: string): (event: PipelineEvent) => void {
+  return (event) => {
+    switch (event.type) {
+      case "artist-resolved":
+        console.log(`Resolved "${artistQuery}" -> ${event.name}${event.disambiguation ? ` (${event.disambiguation})` : ""}`);
+        break;
+      case "discography-fetching":
+        console.log("Fetching discography from MusicBrainz (1 request/sec, this takes a while)...");
+        break;
+      case "discography-resolved":
+        console.log(`Discography resolved: ${event.trackCount} unique tracks.`);
+        break;
+      case "lyrics-ready":
+        console.log(`Lyrics ready — ${event.withLyrics}/${event.total} tracks have lyrics.`);
+        break;
+      case "classify-completed":
+        console.log(
+          `Classified: ${event.classification.track} - theme=${event.classification.theme} mood=${event.classification.mood.toFixed(2)}`,
+        );
+        break;
+      case "run-completed": {
+        const { meta } = event;
+        console.log(
+          `\nDone. Classified ${meta.totalSongsInOutput}/${event.totalConsidered} tracks (${event.skippedCount} skipped, no lyrics).`,
+        );
+        if (meta.songsClassifiedThisRun > 0) {
+          console.log(
+            `Jev usage this run: ${meta.songsClassifiedThisRun} song(s), ${meta.tokens.input} input / ${meta.tokens.output} output tokens, ` +
+              `~$${meta.estimatedCostUsd.toFixed(4)}, ${(meta.durationMs.classification / 1000).toFixed(1)}s.`,
+          );
+        }
+        console.log(`Output: data/output/${slugify(meta.artist)}.json`);
+        break;
+      }
+      default:
+        break;
+    }
+  };
+}
+
 async function runClassifyCommand(argv: string[]): Promise<void> {
   const args = parseClassifyArgs(argv);
   const wasInteractive = !args.artist;
@@ -134,12 +178,15 @@ async function runClassifyCommand(argv: string[]): Promise<void> {
   // See .env.schema and https://varlock.dev.
   await import("varlock/auto-load");
 
-  await runPipeline(args.artist, {
-    limit: args.limit,
-    includeNonAlbums: args.includeNonAlbums,
-    force: args.force,
-    verbose: args.verbose,
-  });
+  const runOptions = { limit: args.limit, includeNonAlbums: args.includeNonAlbums, force: args.force };
+
+  if (args.verbose) {
+    await runPipeline(args.artist, { ...runOptions, onEvent: createPlainLogger(args.artist) });
+  } else if (canAnimate()) {
+    await runClassifyUI(args.artist, runOptions);
+  } else {
+    await runPipeline(args.artist, runOptions);
+  }
 
   if (!args.noVisualize) {
     await printVisualization(args.artist);

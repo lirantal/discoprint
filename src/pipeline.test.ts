@@ -8,10 +8,6 @@ import { sleep } from "./util.js";
 process.env.MUSICBRAINZ_MIN_INTERVAL_MS = "0";
 process.env.LRCLIB_MIN_INTERVAL_MS = "0";
 process.env.TYPESAFE_API_KEY = "test-key";
-// runPipeline's default (non-verbose) output is spinners/animations when
-// stdout is a real TTY. Force the non-animated path regardless of how this
-// test happens to be invoked, so output stays deterministic either way.
-process.env.CI = "1";
 
 const originalCwd = process.cwd();
 const tmpDir = await mkdtemp(join(tmpdir(), "alc-pipeline-test-"));
@@ -189,6 +185,41 @@ test("runPipeline --limit caps how many tracks are processed, without touching l
   assert.equal(output.length, 1);
   assert.equal(output[0].track, "Song One");
   assert.equal(output[0].theme, "self_reflection"); // still the forced-rerun value, from cache
+});
+
+test("runPipeline reports progress via onEvent, ending with run-completed", async (t) => {
+  t.mock.method(globalThis, "fetch", async (url: string) =>
+    router(url, [mockArtistSearch, mockDiscography, mockJevClassification("love", 2)]),
+  );
+
+  const events: string[] = [];
+  await runPipeline("Test Artist", { force: true, onEvent: (e) => events.push(e.type) });
+
+  assert.deepEqual(events.slice(0, 2), ["artist-resolving", "artist-resolved"]);
+  assert.ok(events.includes("discography-fetching"));
+  assert.ok(events.includes("discography-resolved"));
+  assert.ok(events.includes("classify-queued"));
+  assert.ok(events.includes("classify-started"));
+  assert.ok(events.includes("classify-completed"));
+  assert.equal(events.at(-1), "run-completed");
+});
+
+test("runPipeline calling onEvent is optional — nothing breaks without one", async (t) => {
+  t.mock.method(globalThis, "fetch", async (url: string) => router(url, [mockArtistSearch]));
+  await assert.doesNotReject(() => runPipeline("Test Artist", { limit: 1 }));
+});
+
+test("runPipeline emits classify-failed and rejects, without a run-completed, when a Jev call fails", async (t) => {
+  t.mock.method(globalThis, "fetch", async (url: string) => {
+    if (url.endsWith("/v1/systemone")) return new Response("", { status: 500 });
+    return router(url, [mockArtistSearch, mockDiscography]);
+  });
+
+  const events: string[] = [];
+  await assert.rejects(() => runPipeline("Test Artist", { force: true, onEvent: (e) => events.push(e.type) }));
+
+  assert.ok(events.includes("classify-failed"));
+  assert.ok(!events.includes("run-completed"));
 });
 
 test("runPipeline classifies songs concurrently, so classification wall time isn't a sum of the individual calls", async (t) => {

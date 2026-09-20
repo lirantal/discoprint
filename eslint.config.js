@@ -14,8 +14,6 @@ export default defineConfig([
     ".vscode/**",
     ".husky/**",
     "data/**",
-    // Standalone Ink spike, not wired into the real CLI — see spikes/README.md.
-    "spikes/**",
   ]),
   js.configs.recommended,
   ...tseslint.configs.recommended,

@@ -53,14 +53,17 @@ default is albums + EPs only), `--force` (re-classify ignoring cached results),
 `--verbose` (print per-step progress — artist resolution, discography fetch, one
 line per song — instead of just the one-line summary shown by default).
 
-In a real terminal, each classify step animates instead of logging: a spinner
-for artist resolution and the discography/lyrics fetch, then — since lyrics
-are already on disk by that point, so classifying one song doesn't have to
-wait on another — a live checklist with one line per song being classified
-concurrently, each swapping its spinner for a colored theme/mood result as
-Jev responds. Runs over ~20 songs fall back to a single aggregate spinner
-instead, so the checklist doesn't outgrow the terminal. `--verbose`, CI, and
-non-TTY output (e.g. piped to a file) all skip the animation entirely.
+In a real terminal, classifying renders as a live [Ink](https://github.com/vadimdemedes/ink)
+dashboard (`src/tui/`) instead of a plain log: a status header (artist,
+current phase, elapsed time), a scrolling log of songs classified so far —
+since lyrics are already on disk by the time classification starts, several
+songs classify concurrently instead of one at a time — a spotlight panel
+that reveals each result's theme/mood/complexity/explicit/first-person as it
+lands, a running theme legend, and an aggregate stats footer. The log scrolls
+in place once it outgrows the terminal instead of endlessly printing new
+lines, so a 200-song run renders the same frame size as a 5-song one.
+`--verbose`, CI, and non-TTY output (e.g. piped to a file) all fall back to
+a plain-text progress log instead.
 
 ## How it works
 
@@ -163,6 +166,17 @@ and [src/viz/colors.ts](src/viz/colors.ts) (hex colors, gradient interpolation)
 are renderer-independent too, so an HTML version would reuse the same palette
 and just emit CSS instead of ANSI escapes.
 
+The same split applies to the *live* classify view: [src/pipeline.ts](src/pipeline.ts)
+never touches the terminal — it reports progress as a plain `PipelineEvent`
+stream ([src/pipeline-events.ts](src/pipeline-events.ts)) and stays exactly as
+testable as before. [src/bin/cli.ts](src/bin/cli.ts) picks a consumer for
+that stream: the [src/tui/](src/tui) Ink dashboard interactively, a
+plain-text logger for `--verbose`/non-TTY output, or nothing for the default
+quiet summary. [src/tui/state.ts](src/tui/state.ts) is a pure
+`(AppState, PipelineEvent) -> AppState` reducer with no Ink/React
+dependency, so the dashboard's state machine is unit-tested the same way as
+everything else in this project.
+
 ## Local development setup
 
 ```bash
@@ -237,7 +251,8 @@ pnpm run test:coverage # same, plus a line/branch/function coverage report
 - [src/errors.test.ts](src/errors.test.ts) — every mapped error case in `describeError`, plus the fallback for anything unrecognized
 - [src/musicbrainz-retry-limit.test.ts](src/musicbrainz-retry-limit.test.ts) — retry exhaustion on a persistent 503, isolated in its own file/process (see the comment in it for why)
 - [src/prompt.test.ts](src/prompt.test.ts) — the interactive text prompt: TTY/CI detection, validation retries, default-value fallback, cancellation
-- [src/pipeline.test.ts](src/pipeline.test.ts) — full integration run against a temp directory: fresh run, cached rerun (only artist resolution hits the network), `--force`, `--limit`
+- [src/pipeline.test.ts](src/pipeline.test.ts) — full integration run against a temp directory: fresh run, cached rerun (only artist resolution hits the network), `--force`, `--limit`, the `onEvent` progress stream (order, optionality, a failure mid-classify), and that concurrent classification is actually concurrent (wall time less than the sum of the individual calls)
+- [src/tui/state.test.ts](src/tui/state.test.ts) — the live dashboard's state machine (`PipelineEvent -> AppState`), tested as a plain reducer with no Ink/React involved
 - [src/viz/colors.test.ts](src/viz/colors.test.ts), [src/viz/data.test.ts](src/viz/data.test.ts) — color interpolation and the pure data-shaping/aggregation logic
 - [src/viz/render-terminal.test.ts](src/viz/render-terminal.test.ts) — adaptive per-song/per-album view selection, column alignment, and edge cases (0 songs, 1 song, very long titles)
 
