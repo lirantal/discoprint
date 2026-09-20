@@ -134,6 +134,53 @@ test("getDiscography", async (t) => {
     assert.equal(tracks[0].releaseDate, "1997-05-21");
   });
 
+  await t.test("filters out a pre-fame demo release-group, even one mis-dated before the real debut (regression)", async () => {
+    // A real bug: MusicBrainz has a Madonna "Demo" EP mis-dated to 1980, three
+    // years before her actual 1983 debut. Left unfiltered, it sorted first
+    // and --limit N grabbed only its rehearsal-tape tracks, none of which
+    // have lyrics on lrclib.
+    t.mock.method(globalThis, "fetch", async (url: string) => {
+      if (url.includes("/release-group?")) {
+        return jsonResponse({
+          "release-group-count": 2,
+          "release-groups": [
+            {
+              id: "rg-demo",
+              title: "Madonna",
+              "primary-type": "EP",
+              "secondary-types": ["Demo"],
+              "first-release-date": "1980",
+            },
+            {
+              id: "rg-debut",
+              title: "Madonna",
+              "primary-type": "Album",
+              "secondary-types": [],
+              "first-release-date": "1983-07-27",
+            },
+          ],
+        });
+      }
+
+      if (url.includes("release-group=rg-debut")) {
+        return jsonResponse({
+          releases: [
+            { id: "r1", media: [{ tracks: [{ id: "t1", title: "Holiday", recording: { id: "rec-1", title: "Holiday" } }] }] },
+          ],
+        });
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    const tracks = await getDiscography("artist-1");
+
+    assert.deepEqual(
+      tracks.map((t) => t.title),
+      ["Holiday"],
+    );
+  });
+
   await t.test("dedupes the same normalized title across release-groups, keeping the earliest", async () => {
     t.mock.method(globalThis, "fetch", async (url: string) => {
       if (url.includes("/release-group?")) {
