@@ -10,6 +10,13 @@ Before making changes, read:
 - `RELEASE.md` for release workflow details.
 - `README.md` for user-facing behavior, install/use examples, and package or app overview.
 - `DEVELOPMENT.md` for local setup and development workflows.
+- **`docs/README.md`** for how this specific codebase is built and why —
+  architecture, the Ink TUI's sharper edges, the Jev integration, caching
+  semantics, testing conventions, and a decisions log explaining what's
+  already been tried and found not to work. Read this before changing
+  anything under `src/pipeline.ts`, `src/tui/`, or `src/jev.ts` — several
+  things that look like reasonable simplifications there have already
+  caused a real, previously-fixed bug once.
 
 Treat those files as the source of truth. Do not duplicate or reinterpret their rules here.
 
