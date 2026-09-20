@@ -11,6 +11,10 @@ const FRAME_INTERVAL_MS = Number(process.env.SPINNER_FRAME_INTERVAL_MS ?? 80);
 const HIDE_CURSOR = "\x1B[?25l";
 const SHOW_CURSOR = "\x1B[?25h";
 const CLEAR_LINE = "\x1B[2K\r";
+// Erases from the cursor to the end of the screen — used to collapse a
+// finished multi-line task list back down to nothing (or one summary line)
+// instead of leaving every item's line behind.
+const ERASE_TO_END = "\x1B[0J";
 const cursorUp = (n: number): string => `\x1B[${n}A`;
 
 type Output = NodeJS.WritableStream & { columns?: number; isTTY?: boolean };
@@ -81,8 +85,14 @@ export interface TaskListItem {
 export interface TaskList {
   /** Marks one line as finished, freezing it as `finalLabel` instead of the spinner. */
   complete(id: string, finalLabel: string): void;
-  /** Stops the animation, leaving every line in its last-rendered state. */
-  stop(): void;
+  /**
+   * Stops the animation and collapses the whole list away — the per-item
+   * lines are transient (that's where the "colors filling in" animation
+   * happens), not a permanent record, so they'd otherwise sit on screen
+   * duplicating whatever summarizes the results next. Pass `finalLine` to
+   * leave a single line in their place, or omit it to leave nothing.
+   */
+  stop(finalLine?: string): void;
 }
 
 /**
@@ -122,12 +132,13 @@ export function startTaskList(items: TaskListItem[], output: Output = process.st
     complete(id: string, finalLabel: string) {
       finalLabels.set(id, finalLabel);
     },
-    stop() {
+    stop(finalLine?: string) {
       if (timer) clearInterval(timer);
       if (ids.length > 0) {
         output.write(cursorUp(ids.length));
-        paint();
+        output.write(ERASE_TO_END);
       }
+      if (finalLine !== undefined) output.write(`${finalLine}\n`);
       output.write(SHOW_CURSOR);
     },
   };

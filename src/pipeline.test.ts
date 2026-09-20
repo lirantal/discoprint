@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { sleep } from "./util.js";
 
 process.env.MUSICBRAINZ_MIN_INTERVAL_MS = "0";
 process.env.LRCLIB_MIN_INTERVAL_MS = "0";
@@ -188,4 +189,78 @@ test("runPipeline --limit caps how many tracks are processed, without touching l
   assert.equal(output.length, 1);
   assert.equal(output[0].track, "Song One");
   assert.equal(output[0].theme, "self_reflection"); // still the forced-rerun value, from cache
+});
+
+test("runPipeline classifies songs concurrently, so classification wall time isn't a sum of the individual calls", async (t) => {
+  const CALL_DELAY_MS = 60;
+  const SONG_COUNT = 4;
+
+  t.mock.method(globalThis, "fetch", async (url: string) => {
+    if (url.includes("/artist/?query=")) {
+      return jsonResponse({ artists: [{ id: "artist-concurrency", name: "Concurrency Artist", score: 100 }] });
+    }
+    if (url.includes("/release-group?")) {
+      return jsonResponse({
+        "release-group-count": 1,
+        "release-groups": [
+          {
+            id: "rg-1",
+            title: "Album",
+            "primary-type": "Album",
+            "secondary-types": [],
+            "first-release-date": "2001-01-01",
+          },
+        ],
+      });
+    }
+    if (url.includes("/release?release-group=rg-1")) {
+      return jsonResponse({
+        releases: [
+          {
+            id: "rel-1",
+            media: [
+              {
+                tracks: Array.from({ length: SONG_COUNT }, (_, i) => ({
+                  id: `t${i}`,
+                  title: `Song ${i}`,
+                  recording: { id: `rec-${i}`, title: `Song ${i}` },
+                })),
+              },
+            ],
+          },
+        ],
+      });
+    }
+    if (url.includes("lrclib.net/api/get")) {
+      return jsonResponse({ trackName: "x", artistName: "x", plainLyrics: "la la la", instrumental: false });
+    }
+    if (url.endsWith("/v1/systemone")) {
+      await sleep(CALL_DELAY_MS);
+      return jsonResponse({
+        answers: {
+          theme: { type: "choice", choice: "love", confidence: 0.9, probabilities: {} },
+          mood: { type: "score", score: 2, confidence: 0.8, probabilities: {}, legend: {} },
+          complexity: { type: "score", score: 1, confidence: 0.6, probabilities: {}, legend: {} },
+          explicit: { type: "noul", noul: 0.01 },
+          firstPerson: { type: "noul", noul: 0.4 },
+        },
+        model: "jev-latest",
+        usage: { input_tokens: 50, output_tokens: 8 },
+      });
+    }
+    throw new Error(`Unexpected fetch: ${url}`);
+  });
+
+  await runPipeline("Concurrency Artist", {});
+
+  const meta = JSON.parse(
+    await readFile(join(tmpDir, "data", "output", "concurrency-artist-meta.json"), "utf-8"),
+  );
+  assert.equal(meta.songsClassifiedThisRun, SONG_COUNT);
+  // If calls ran sequentially this would take >= SONG_COUNT * CALL_DELAY_MS;
+  // concurrently, it should take roughly one call's worth of time.
+  assert.ok(
+    meta.durationMs.classification < SONG_COUNT * CALL_DELAY_MS,
+    `expected concurrent wall time < ${SONG_COUNT * CALL_DELAY_MS}ms, got ${meta.durationMs.classification}ms`,
+  );
 });

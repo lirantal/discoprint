@@ -53,7 +53,11 @@ export interface ClassificationRunMeta {
   tokens: { input: number; output: number };
   estimatedCostUsd: number;
   durationMs: {
-    /** Sum of per-call Jev durations (excludes MusicBrainz/lrclib/cache I/O time). */
+    /**
+     * Wall-clock time for the classification phase (excludes MusicBrainz/lrclib/cache
+     * I/O time). Songs classify concurrently, so this is *not* a sum of each
+     * individual Jev call's duration — it's how long the phase actually took.
+     */
     classification: number;
     /** Wall time for the whole runPipeline call. */
     total: number;

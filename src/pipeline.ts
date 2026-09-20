@@ -143,7 +143,6 @@ export async function runPipeline(artistName: string, options: RunOptions = {}):
     songsClassifiedThisRun += 1;
     inputTokens += result.usage.inputTokens;
     outputTokens += result.usage.outputTokens;
-    classifyDurationMs += result.usage.durationMs;
     lastModel = result.usage.model;
     await writeJsonCache(item.cachePath, result.classification);
     return result.classification;
@@ -153,6 +152,7 @@ export async function runPipeline(artistName: string, options: RunOptions = {}):
     // Since lyrics are already on disk, classifying each song is an
     // independent single Jev call — run several in flight at once instead of
     // one at a time.
+    const classifyPhaseStartedAt = Date.now();
     const useTaskList = animate && pending.length <= MAX_ANIMATED_ROWS;
     const colorEnabled = colorsEnabled();
 
@@ -203,13 +203,23 @@ export async function runPipeline(artistName: string, options: RunOptions = {}):
     }
 
     await Promise.all(Array.from({ length: Math.min(CLASSIFY_CONCURRENCY, pending.length) }, worker));
-    taskList?.stop();
+    // Wall-clock, not a sum of the individual calls: several run concurrently,
+    // so summing their durations would overstate how long this phase actually took.
+    classifyDurationMs = Date.now() - classifyPhaseStartedAt;
 
     if (firstError) {
+      taskList?.stop("✖ Classification failed.");
       classifySpinner?.stop("✖ Classification failed.");
       throw firstError;
     }
-    classifySpinner?.stop(`✔ Classified ${pending.length} song${pending.length === 1 ? "" : "s"}.`);
+    // Collapsed to one line either way: the per-song lines (task list) or the
+    // running count (spinner) were only useful while classification was
+    // still in flight — left on screen afterward, they'd just duplicate the
+    // dashboard's own per-song breakdown a moment later, out of order (songs
+    // finish in completion order here, not chronological).
+    const doneLine = `✔ Classified ${pending.length} song${pending.length === 1 ? "" : "s"}.`;
+    taskList?.stop(doneLine);
+    classifySpinner?.stop(doneLine);
   }
 
   const meta: ClassificationRunMeta = {

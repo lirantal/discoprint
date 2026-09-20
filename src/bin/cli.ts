@@ -147,6 +147,7 @@ async function runClassifyCommand(argv: string[]): Promise<void> {
     // No dashboard to show, so print the one-line summary the dashboard's
     // header would otherwise have carried.
     const data = await loadVisualizationData(OUTPUT_DIR, slugify(args.artist), args.artist);
+    console.log();
     console.log(renderHeader(data, colorsEnabled()));
   }
 }

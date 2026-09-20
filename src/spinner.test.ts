@@ -110,6 +110,43 @@ test("startTaskList", async (t) => {
     assert.ok(written.includes("✔ Song A — love, mood 3.2"));
   });
 
+  await t.test("stop() collapses the per-item lines instead of leaving them behind (regression)", async () => {
+    // A real bug: leaving every item's finished line on screen duplicated
+    // whatever printed the same results afterward (e.g. the dashboard),
+    // often in a different order since items finish out of order.
+    const output = fakeOutput();
+    const list = startTaskList(
+      [
+        { id: "a", label: "Song A" },
+        { id: "b", label: "Song B" },
+      ],
+      output,
+    );
+    await sleep(15);
+    list.complete("a", "✔ Song A — love, mood 3.2");
+    list.complete("b", "✔ Song B — heartbreak, mood 1.1");
+    output.chunks.length = 0; // only care what stop() itself writes from here
+    list.stop();
+
+    const written = output.chunks.join("");
+    assert.ok(written.includes("\x1B[0J")); // erase-to-end-of-screen
+    assert.ok(!written.includes("Song A"));
+    assert.ok(!written.includes("Song B"));
+  });
+
+  await t.test("stop(finalLine) leaves exactly one summary line instead of the per-item ones", async () => {
+    const output = fakeOutput();
+    const list = startTaskList([{ id: "a", label: "Song A" }], output);
+    await sleep(10);
+    list.stop("✔ Classified 1 song.");
+
+    const written = output.chunks.join("");
+    assert.ok(written.includes("✔ Classified 1 song."));
+    // The erase happens before the summary line is written, so nothing
+    // from the per-item render survives past it.
+    assert.ok(written.indexOf("\x1B[0J") < written.indexOf("✔ Classified 1 song."));
+  });
+
   await t.test("handles an empty item list without crashing or animating forever", async () => {
     const output = fakeOutput();
     const list = startTaskList([], output);
