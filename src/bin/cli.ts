@@ -105,6 +105,17 @@ async function runVisualizeCommand(argv: string[]): Promise<void> {
   await printVisualization(artist);
 }
 
+/** Used by the non-Ink paths (--verbose, non-TTY) — the Ink path shows this itself as part of its own live-to-dashboard transition. */
+async function printFinalOutput(artist: string, showDashboard: boolean): Promise<void> {
+  if (showDashboard) {
+    await printVisualization(artist);
+    return;
+  }
+  const data = await loadVisualizationData(OUTPUT_DIR, slugify(artist), artist);
+  console.log();
+  console.log(renderHeader(data, colorsEnabled()));
+}
+
 /** Replicates the plain-text progress log the live dashboard replaces, for --verbose and non-TTY output. */
 function createPlainLogger(artistQuery: string): (event: PipelineEvent) => void {
   return (event) => {
@@ -179,23 +190,18 @@ async function runClassifyCommand(argv: string[]): Promise<void> {
   await import("varlock/auto-load");
 
   const runOptions = { limit: args.limit, includeNonAlbums: args.includeNonAlbums, force: args.force };
+  const showDashboard = !args.noVisualize;
 
   if (args.verbose) {
     await runPipeline(args.artist, { ...runOptions, onEvent: createPlainLogger(args.artist) });
+    await printFinalOutput(args.artist, showDashboard);
   } else if (canAnimate()) {
-    await runClassifyUI(args.artist, runOptions);
+    // The live view settles into this same dashboard itself once done —
+    // nothing further to print here (see src/tui/App.tsx).
+    await runClassifyUI(args.artist, runOptions, { showDashboard });
   } else {
     await runPipeline(args.artist, runOptions);
-  }
-
-  if (!args.noVisualize) {
-    await printVisualization(args.artist);
-  } else {
-    // No dashboard to show, so print the one-line summary the dashboard's
-    // header would otherwise have carried.
-    const data = await loadVisualizationData(OUTPUT_DIR, slugify(args.artist), args.artist);
-    console.log();
-    console.log(renderHeader(data, colorsEnabled()));
+    await printFinalOutput(args.artist, showDashboard);
   }
 }
 

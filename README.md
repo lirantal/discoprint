@@ -53,17 +53,22 @@ default is albums + EPs only), `--force` (re-classify ignoring cached results),
 `--verbose` (print per-step progress — artist resolution, discography fetch, one
 line per song — instead of just the one-line summary shown by default).
 
-In a real terminal, classifying renders as a live [Ink](https://github.com/vadimdemedes/ink)
-dashboard (`src/tui/`) instead of a plain log: a status header (artist,
-current phase, elapsed time), a scrolling log of songs classified so far —
-since lyrics are already on disk by the time classification starts, several
-songs classify concurrently instead of one at a time — a spotlight panel
-that reveals each result's theme/mood/complexity/explicit/first-person as it
-lands, a running theme legend, and an aggregate stats footer. The log scrolls
-in place once it outgrows the terminal instead of endlessly printing new
-lines, so a 200-song run renders the same frame size as a 5-song one.
-`--verbose`, CI, and non-TTY output (e.g. piped to a file) all fall back to
-a plain-text progress log instead.
+In a real terminal, classifying is one continuous [Ink](https://github.com/vadimdemedes/ink)
+app (`src/tui/`), not a live animation that hands off to a separate
+plain-text dashboard afterward. While work is happening: a status header
+(artist, current phase, elapsed time), a scrolling log of songs classified
+so far — since lyrics are already on disk by the time classification
+starts, several songs classify concurrently instead of one at a time — a
+spotlight panel that reveals each result's theme/mood/complexity/explicit/
+first-person as it lands, a running theme legend, and an aggregate stats
+footer. The log scrolls in place once it outgrows the terminal instead of
+endlessly printing new lines, so a 200-song run renders the same frame size
+as a 5-song one. Once done, that live view settles and morphs into the
+exact same dashboard `discoprint visualize` renders — one visual language
+throughout, committed permanently to your scrollback (via Ink's `<Static>`)
+rather than erased when the app exits. `--verbose`, CI, and non-TTY output
+(e.g. piped to a file) skip the live view and print a plain-text progress
+log followed by the same final dashboard instead.
 
 ## How it works
 
@@ -175,7 +180,12 @@ plain-text logger for `--verbose`/non-TTY output, or nothing for the default
 quiet summary. [src/tui/state.ts](src/tui/state.ts) is a pure
 `(AppState, PipelineEvent) -> AppState` reducer with no Ink/React
 dependency, so the dashboard's state machine is unit-tested the same way as
-everything else in this project.
+everything else in this project. [src/tui/App.tsx](src/tui/App.tsx) is the
+one place that bridges *back* to `render-terminal.ts`: once the run is
+done, it loads the same `VisualizationData` and renders it with the same
+`renderTerminal()` used everywhere else, just inside an Ink `<Static>` block
+instead of `console.log` — one dashboard implementation, reused rather than
+duplicated for the live-view's ending.
 
 ## Local development setup
 
