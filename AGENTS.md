@@ -9,11 +9,7 @@ Before making changes, read:
 - `CONTRIBUTING.md` for contribution, PR, testing, commit, and agent-specific expectations.
 - `RELEASE.md` for release workflow details.
 - `README.md` for user-facing behavior, install/use examples, and package or app overview.
-- `docs/README.md` for the project documentation index.
-- `docs/development.md` for local setup and development workflows.
-- `docs/testing.md` for test strategy, commands, and verification expectations.
-- `docs/architecture.md` for project structure, boundaries, and important invariants.
-- `docs/conventions.md` for project-specific coding, documentation, and maintenance conventions.
+- `DEVELOPMENT.md` for local setup and development workflows.
 
 Treat those files as the source of truth. Do not duplicate or reinterpret their rules here.
 

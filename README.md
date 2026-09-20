@@ -62,7 +62,27 @@ default is albums + EPs only), `--force` (re-classify ignoring cached results).
 
 Every stage is cached to disk under `data/cache/`, so re-runs are incremental and
 you can safely interrupt a long run (MusicBrainz is rate-limited to 1 req/sec, so
-a big discography takes a few minutes just for step 1).
+a big discography takes a few minutes just for step 1). See [Caching](#caching)
+below for exactly what's cached and what re-triggers a real network call.
+
+## Caching
+
+| Step                                 | Cached?                 | Where                                                       | Re-fetched by                                                |
+| ------------------------------------ | ----------------------- | ----------------------------------------------------------- | ------------------------------------------------------------ |
+| Resolve artist name → MusicBrainz ID | No — always a live call | —                                                           | every run, unconditionally                                   |
+| Fetch discography (albums/tracks)    | Yes                     | `data/cache/musicbrainz/<artist-slug>.json`                 | `--force`                                                    |
+| Fetch lyrics per song                | Yes                     | `data/cache/lyrics/<artist-slug>/<track-slug>.json`         | nothing — delete the file yourself to retry a specific track |
+| Classify a song with Jev             | Yes                     | `data/cache/classification/<artist-slug>/<track-slug>.json` | `--force`                                                    |
+| Final output                         | —                       | `data/output/<artist-slug>.json` (+ `-skipped.json`)        | rewritten on every run from whatever was cached/fetched      |
+
+So `discoprint "Bon Jovi" --limit 10`, once those 10 songs are already
+classified, makes exactly one real network call (the artist lookup) and
+serves everything else from disk — no lrclib or Jev calls, no cost. Raising
+`--limit` only fetches/classifies the _additional_ songs beyond what's
+cached. `--force` re-fetches the discography and re-classifies every song
+in scope, but still reuses cached lyrics (there's no automatic invalidation
+for those — lyrics don't change, so the only way to retry a track's lyrics
+lookup is deleting its cache file).
 
 ## Classifiers
 
@@ -155,12 +175,8 @@ Run `pnpm exec varlock load` any time to check what resolves without running the
 Before real use, edit the `USER_AGENT` string in [src/musicbrainz.ts](src/musicbrainz.ts)
 to include your own contact info/repo URL — MusicBrainz requires this.
 
-Run the CLI from source without building:
-
-```bash
-pnpm run classify -- "Radiohead" --limit 10   # alias for: tsx src/bin/cli.ts
-pnpm run visualize -- "Bon Jovi"              # alias for: tsx src/bin/cli.ts visualize
-```
+See [DEVELOPMENT.md](./DEVELOPMENT.md) for running the CLI from source and for
+building/linking `discoprint` as a real global command.
 
 The interactive prompt (in the look & feel of
 [lirantal/boxdown](https://github.com/lirantal/boxdown)'s prompts — see
