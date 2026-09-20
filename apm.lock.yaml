@@ -1,0 +1,48 @@
+lockfile_version: '1'
+apm_version: 0.31.0
+dependencies:
+- repo_url: typesafe-ai/skills
+  name: typesafe
+  host: github.com
+  resolved_commit: 65a39f393687675ce170e6094757de20370365b9
+  version: 0.5.7
+  package_type: skill_bundle
+  deployed_files:
+  - .claude/skills/typesafe-ai
+  - .claude/skills/typesafe-ai/LICENSE
+  - .claude/skills/typesafe-ai/SKILL.md
+  deployed_file_hashes:
+    .claude/skills/typesafe-ai/LICENSE: sha256:835f233f1d6ed84a9b9a351aba0689b47644a4137d6316911fc7957bde523b02
+    .claude/skills/typesafe-ai/SKILL.md: sha256:71ea90d7906c6554c4f4c460ef7361b2d26f59116ccdae986dc6d997b9389f52
+  content_hash: sha256:5b49a013f98b3f3a181eeb8cf1e26962d3eb63435faa2d9a91798b13b79ef5c8
+  skill_subset:
+  - typesafe-ai
+  declared_license: MIT
+deployments:
+- kind: project-relative
+  target: claude
+  value: .claude/skills/typesafe-ai
+  runtime: null
+  scope: project
+  owners:
+  - typesafe-ai/skills
+  active_owner: typesafe-ai/skills
+  content_hash: null
+- kind: project-relative
+  target: claude
+  value: .claude/skills/typesafe-ai/LICENSE
+  runtime: null
+  scope: project
+  owners:
+  - typesafe-ai/skills
+  active_owner: typesafe-ai/skills
+  content_hash: sha256:835f233f1d6ed84a9b9a351aba0689b47644a4137d6316911fc7957bde523b02
+- kind: project-relative
+  target: claude
+  value: .claude/skills/typesafe-ai/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - typesafe-ai/skills
+  active_owner: typesafe-ai/skills
+  content_hash: sha256:71ea90d7906c6554c4f4c460ef7361b2d26f59116ccdae986dc6d997b9389f52
