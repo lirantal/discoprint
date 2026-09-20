@@ -1,11 +1,6 @@
 # Release
 
-This project uses [Changesets](https://github.com/changesets/changesets) to record release intent before the version and publish steps run.
-
-Use the command that matches the repository's package manager:
-
-- npm: `npx @changesets/cli`
-- pnpm: `pnpx @changesets/cli`
+This project uses [Changesets](https://github.com/changesets/changesets) to record release intent before the version and publish steps run. This project uses pnpm: `pnpm dlx @changesets/cli`.
 
 ## Release tooling
 
@@ -26,11 +21,7 @@ Permit GitHub Actions to create and approve pull requests:
 Run the Changesets CLI and follow the prompts:
 
 ```sh
-# npm
-npx @changesets/cli
-
-# pnpm
-pnpx @changesets/cli
+pnpm dlx @changesets/cli
 ```
 
 The CLI asks which package changed, what semver bump is needed, and what summary should go in the changelog. Use:
@@ -86,11 +77,6 @@ git push origin HEAD --no-verify
 After the changeset lands on the release branch, run the configured package scripts when it is time to cut and publish the release:
 
 ```sh
-# npm
-npm run version
-npm run release
-
-# pnpm
 pnpm run version
 pnpm run release
 ```

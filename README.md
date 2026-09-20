@@ -130,8 +130,8 @@ and just emit CSS instead of ANSI escapes.
 ```bash
 git clone https://github.com/lirantal/discoprint.git
 cd discoprint
-npm install
-npm run prepare   # sets up git hooks; skipped automatically by `ignore-scripts` in .npmrc
+pnpm install
+pnpm run prepare   # sets up git hooks; skipped automatically by `ignore-scripts` in .npmrc
 ```
 
 Env vars are managed with [Varlock](https://varlock.dev): [.env.schema](.env.schema) declares
@@ -150,7 +150,7 @@ TYPESAFE_API_KEY=sk-...
 TYPESAFE_API_KEY=op(op://Personal/typesafe/api_key)
 ```
 
-Run `npx varlock load` any time to check what resolves without running the whole pipeline.
+Run `pnpm exec varlock load` any time to check what resolves without running the whole pipeline.
 
 Before real use, edit the `USER_AGENT` string in [src/musicbrainz.ts](src/musicbrainz.ts)
 to include your own contact info/repo URL — MusicBrainz requires this.
@@ -158,8 +158,8 @@ to include your own contact info/repo URL — MusicBrainz requires this.
 Run the CLI from source without building:
 
 ```bash
-npm run classify -- "Radiohead" --limit 10   # alias for: tsx src/bin/cli.ts
-npm run visualize -- "Bon Jovi"              # alias for: tsx src/bin/cli.ts visualize
+pnpm run classify -- "Radiohead" --limit 10   # alias for: tsx src/bin/cli.ts
+pnpm run visualize -- "Bon Jovi"              # alias for: tsx src/bin/cli.ts visualize
 ```
 
 The interactive prompt (in the look & feel of
@@ -192,8 +192,8 @@ and `node:assert`. Every network boundary (MusicBrainz, lrclib, the TypeSafe API
 by stubbing `globalThis.fetch` per test with `t.mock.method`; nothing hits the real internet.
 
 ```bash
-npm test              # run everything once
-npm run test:coverage # same, plus a line/branch/function coverage report
+pnpm test              # run everything once
+pnpm run test:coverage # same, plus a line/branch/function coverage report
 ```
 
 - [src/util.test.ts](src/util.test.ts) — pure functions (`slugify`, `normalizeTrackTitle`) and the disk-cache round trip
