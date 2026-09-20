@@ -1,6 +1,7 @@
 import { bold, clamp, colorsEnabled, dim, fg, moodGradientHex } from "./colors.js";
 import { resample, type AlbumGroup, type VisualizationData } from "./data.js";
 import { THEME_PALETTE, themeColor } from "./theme-palette.js";
+import { formatDuration, formatTokenCount, formatUsd } from "../format.js";
 import type { SongClassification } from "../types.js";
 
 export interface TerminalRenderOptions {
@@ -256,21 +257,6 @@ function renderAlbumRow(album: AlbumGroup, width: number, colorEnabled: boolean)
 /** Length ignoring ANSI escape sequences — needed to wrap/pad colored strings correctly. */
 function visibleLength(text: string): number {
   return text.replace(/\[[0-9;]*m/g, "").length;
-}
-
-function formatTokenCount(count: number): string {
-  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
-  if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K`;
-  return String(count);
-}
-
-function formatDuration(ms: number): string {
-  return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
-}
-
-function formatUsd(amountUsd: number): string {
-  if (amountUsd === 0) return "$0.00";
-  return amountUsd < 0.01 ? `$${amountUsd.toFixed(4)}` : `$${amountUsd.toFixed(2)}`;
 }
 
 /** A footer summarizing Jev usage/cost/timing from the most recent classify run, if any. */

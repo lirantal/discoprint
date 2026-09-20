@@ -64,9 +64,11 @@ first-person as it lands, a running theme legend, and an aggregate stats
 footer. The log scrolls in place once it outgrows the terminal instead of
 endlessly printing new lines, so a 200-song run renders the same frame size
 as a 5-song one. Once done, that live view settles and morphs into the
-exact same dashboard `discoprint visualize` renders — one visual language
-throughout, committed permanently to your scrollback (via Ink's `<Static>`)
-rather than erased when the app exits. `--verbose`, CI, and non-TTY output
+same dashboard (mood arc, theme mix, per-song table, usage footer) that
+`discoprint visualize` shows — same content, same boxed visual style as the
+live view itself, not a fallback to plain text — committed permanently to
+your scrollback (via Ink's `<Static>`) rather than erased when the app
+exits. `--verbose`, CI, and non-TTY output
 (e.g. piped to a file) skip the live view and print a plain-text progress
 log followed by the same final dashboard instead.
 
@@ -180,12 +182,26 @@ plain-text logger for `--verbose`/non-TTY output, or nothing for the default
 quiet summary. [src/tui/state.ts](src/tui/state.ts) is a pure
 `(AppState, PipelineEvent) -> AppState` reducer with no Ink/React
 dependency, so the dashboard's state machine is unit-tested the same way as
-everything else in this project. [src/tui/App.tsx](src/tui/App.tsx) is the
-one place that bridges *back* to `render-terminal.ts`: once the run is
-done, it loads the same `VisualizationData` and renders it with the same
-`renderTerminal()` used everywhere else, just inside an Ink `<Static>` block
-instead of `console.log` — one dashboard implementation, reused rather than
-duplicated for the live-view's ending.
+everything else in this project.
+
+Once a run is done, [src/tui/App.tsx](src/tui/App.tsx) loads the exact same
+`VisualizationData` `render-terminal.ts` does, but hands it to
+[src/tui/dashboard/](src/tui/dashboard) — an Ink re-implementation of the
+same dashboard (mood arc, theme legend/mix bar, adaptive song/album table,
+usage footer), styled like the rest of the live view (the same rounded-box
+`SONGS` panel, the same colors) rather than falling back to plain
+`console.log` text once the animation stops. The two renderers share their
+*data and color logic* — `resample()`/`average()` from `viz/data.ts`,
+`moodGradientHex()` from `viz/colors.ts`, `themeColor()` from
+`viz/theme-palette.ts`, and the bar/glyph math in
+[src/tui/dashboard/bars.ts](src/tui/dashboard/bars.ts) (a pure, unit-tested
+port of `render-terminal.ts`'s own bar math, returning `{ char, color }`
+data instead of ANSI-embedded strings) — but each renders it through its
+own primitives (ANSI strings vs. Ink's `<Text>`/`<Box>`), the same
+renderer-agnostic split the "Built for a second renderer" section above
+describes. `--verbose`/non-TTY output still ends with the plain-text
+dashboard, same as before — the Ink one only replaces what the live view
+morphs into.
 
 ## Local development setup
 
@@ -263,6 +279,8 @@ pnpm run test:coverage # same, plus a line/branch/function coverage report
 - [src/prompt.test.ts](src/prompt.test.ts) — the interactive text prompt: TTY/CI detection, validation retries, default-value fallback, cancellation
 - [src/pipeline.test.ts](src/pipeline.test.ts) — full integration run against a temp directory: fresh run, cached rerun (only artist resolution hits the network), `--force`, `--limit`, the `onEvent` progress stream (order, optionality, a failure mid-classify), and that concurrent classification is actually concurrent (wall time less than the sum of the individual calls)
 - [src/tui/state.test.ts](src/tui/state.test.ts) — the live dashboard's state machine (`PipelineEvent -> AppState`), tested as a plain reducer with no Ink/React involved
+- [src/tui/dashboard/bars.test.ts](src/tui/dashboard/bars.test.ts) — the final dashboard's bar/glyph/sparkline math, tested as plain functions returning `{ char, color }` data, no Ink rendering involved
+- [src/format.test.ts](src/format.test.ts) — token/duration/cost formatting shared by every renderer
 - [src/viz/colors.test.ts](src/viz/colors.test.ts), [src/viz/data.test.ts](src/viz/data.test.ts) — color interpolation and the pure data-shaping/aggregation logic
 - [src/viz/render-terminal.test.ts](src/viz/render-terminal.test.ts) — adaptive per-song/per-album view selection, column alignment, and edge cases (0 songs, 1 song, very long titles)
 

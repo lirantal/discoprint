@@ -3,9 +3,9 @@ import React, { useEffect, useReducer, useState } from "react";
 import { Box, Static, Text, useApp } from "ink";
 import type { PipelineEvent } from "../pipeline-events.js";
 import { slugify } from "../util.js";
-import { colorsEnabled } from "../viz/colors.js";
-import { loadVisualizationData } from "../viz/data.js";
-import { renderHeader, renderTerminal } from "../viz/render-terminal.js";
+import { loadVisualizationData, type VisualizationData } from "../viz/data.js";
+import { Dashboard } from "./dashboard/Dashboard.js";
+import { DashboardHeader } from "./dashboard/DashboardHeader.js";
 import { Header } from "./Header.js";
 import { Legend } from "./Legend.js";
 import { SongLog } from "./SongLog.js";
@@ -36,14 +36,16 @@ export interface AppProps {
 /**
  * The whole classify experience as one continuous app: a live view while
  * work is happening, which then settles and morphs into the same final
- * dashboard `discoprint visualize` renders — committed via <Static> so it
- * survives after this component unmounts, instead of the live view just
- * vanishing and a separate plain-text pass taking over.
+ * dashboard `discoprint visualize` renders (src/tui/dashboard/) — same
+ * VisualizationData, same Ink component styling as the live view, committed
+ * via <Static> so it survives after this component unmounts. Not a live
+ * view that vanishes and hands off to a differently-styled plain-text pass.
  */
 export function App({ artistQuery, subscribe, showDashboard = true }: AppProps): React.JSX.Element {
   const { exit } = useApp();
   const [state, dispatch] = useReducer(reduce, initialState(artistQuery));
-  const [finalLines, setFinalLines] = useState<string[] | null>(null);
+  const [finalData, setFinalData] = useState<VisualizationData | null>(null);
+  const [finalError, setFinalError] = useState<string | null>(null);
 
   useEffect(() => subscribe(dispatch), [subscribe]);
 
@@ -57,12 +59,11 @@ export function App({ artistQuery, subscribe, showDashboard = true }: AppProps):
       void (async () => {
         try {
           const data = await loadVisualizationData(OUTPUT_DIR, slugify(artistName), artistName);
-          if (cancelled) return;
-          setFinalLines(showDashboard ? renderTerminal(data) : [renderHeader(data, colorsEnabled())]);
+          if (!cancelled) setFinalData(data);
         } catch {
           // Shouldn't normally happen right after a successful run — fall
           // back to a plain line rather than hanging on the live view forever.
-          if (!cancelled) setFinalLines([`✔ Done classifying ${artistName}.`]);
+          if (!cancelled) setFinalError(`Done classifying ${artistName}.`);
         }
       })();
     }, settleMs);
@@ -71,16 +72,24 @@ export function App({ artistQuery, subscribe, showDashboard = true }: AppProps):
       cancelled = true;
       clearTimeout(settle);
     };
-  }, [state.phase, state.artistName, state.artistQuery, state.totalToClassify, showDashboard]);
+  }, [state.phase, state.artistName, state.artistQuery, state.totalToClassify]);
 
   useEffect(() => {
-    if (finalLines === null) return;
+    if (finalData === null && finalError === null) return;
     const timer = setTimeout(() => exit(), EXIT_AFTER_STATIC_MS);
     return () => clearTimeout(timer);
-  }, [finalLines, exit]);
+  }, [finalData, finalError, exit]);
 
-  if (finalLines) {
-    return <Static items={finalLines}>{(line, i) => <Text key={i}>{line}</Text>}</Static>;
+  if (finalData) {
+    return (
+      <Static items={["final-dashboard"]}>
+        {(key) => (showDashboard ? <Dashboard key={key} data={finalData} /> : <DashboardHeader key={key} data={finalData} />)}
+      </Static>
+    );
+  }
+
+  if (finalError) {
+    return <Static items={["final-error"]}>{(key) => <Text key={key}>✔ {finalError}</Text>}</Static>;
   }
 
   return (
