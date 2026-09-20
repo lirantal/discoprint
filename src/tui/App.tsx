@@ -12,17 +12,12 @@ import { SongLog } from "./SongLog.js";
 import { SpotlightPanel } from "./SpotlightPanel.js";
 import { initialState, reduce } from "./state.js";
 import { StatsFooter } from "./StatsFooter.js";
+import { useSpotlightSequencer } from "./useSpotlightSequencer.js";
 
 const LEFT_WIDTH = 56;
 const RIGHT_WIDTH = 44;
 const OUTPUT_DIR = join(process.cwd(), "data", "output");
 
-// Long enough to let the spotlight settle on the true final result (see
-// useSpotlightSequencer's done-jump) before morphing into the dashboard;
-// skipped almost entirely when nothing was actually classified live (a
-// fully-cached run), since there's no live moment worth lingering on.
-const SETTLE_WITH_ACTIVITY_MS = 700;
-const SETTLE_WITHOUT_ACTIVITY_MS = 150;
 const EXIT_AFTER_STATIC_MS = 150;
 
 export interface AppProps {
@@ -46,33 +41,34 @@ export function App({ artistQuery, subscribe, showDashboard = true }: AppProps):
   const [state, dispatch] = useReducer(reduce, initialState(artistQuery));
   const [finalData, setFinalData] = useState<VisualizationData | null>(null);
   const [finalError, setFinalError] = useState<string | null>(null);
+  const { spotlight, caughtUp } = useSpotlightSequencer(state.log, state.totalToClassify);
 
   useEffect(() => subscribe(dispatch), [subscribe]);
 
+  // Waits for the spotlight to finish playing through every song — not a
+  // fixed delay — so a fully-cached run (every completion landing at once)
+  // still gets to walk through each result before moving on, the same as a
+  // real classify run does; see useSpotlightSequencer's adaptive pacing.
   useEffect(() => {
-    if (state.phase !== "done") return;
+    if (state.phase !== "done" || !caughtUp) return;
     let cancelled = false;
     const artistName = state.artistName ?? state.artistQuery;
-    const settleMs = state.totalToClassify > 0 ? SETTLE_WITH_ACTIVITY_MS : SETTLE_WITHOUT_ACTIVITY_MS;
 
-    const settle = setTimeout(() => {
-      void (async () => {
-        try {
-          const data = await loadVisualizationData(OUTPUT_DIR, slugify(artistName), artistName);
-          if (!cancelled) setFinalData(data);
-        } catch {
-          // Shouldn't normally happen right after a successful run — fall
-          // back to a plain line rather than hanging on the live view forever.
-          if (!cancelled) setFinalError(`Done classifying ${artistName}.`);
-        }
-      })();
-    }, settleMs);
+    void (async () => {
+      try {
+        const data = await loadVisualizationData(OUTPUT_DIR, slugify(artistName), artistName);
+        if (!cancelled) setFinalData(data);
+      } catch {
+        // Shouldn't normally happen right after a successful run — fall
+        // back to a plain line rather than hanging on the live view forever.
+        if (!cancelled) setFinalError(`Done classifying ${artistName}.`);
+      }
+    })();
 
     return () => {
       cancelled = true;
-      clearTimeout(settle);
     };
-  }, [state.phase, state.artistName, state.artistQuery, state.totalToClassify]);
+  }, [state.phase, caughtUp, state.artistName, state.artistQuery]);
 
   useEffect(() => {
     if (finalData === null && finalError === null) return;
@@ -99,7 +95,7 @@ export function App({ artistQuery, subscribe, showDashboard = true }: AppProps):
         <Box marginRight={1}>
           <SongLog log={state.log} width={LEFT_WIDTH} />
         </Box>
-        <SpotlightPanel state={state} width={RIGHT_WIDTH} />
+        <SpotlightPanel state={state} spotlight={spotlight} width={RIGHT_WIDTH} />
       </Box>
       <Legend log={state.log} />
       <StatsFooter state={state} />

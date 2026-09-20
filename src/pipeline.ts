@@ -4,7 +4,9 @@ import { fetchLyrics } from "./lrclib.js";
 import { classifySong, estimateCostUsd } from "./jev.js";
 import { readJsonCache, writeJsonCache, slugify } from "./util.js";
 import type { PipelineEvent } from "./pipeline-events.js";
-import type { ClassificationRunMeta, LyricsResult, SongClassification, Track } from "./types.js";
+import type { ClassificationRunMeta, JevUsage, LyricsResult, SongClassification, Track } from "./types.js";
+
+const CACHED_USAGE: Omit<JevUsage, "model"> = { inputTokens: 0, outputTokens: 0, durationMs: 0 };
 
 const CACHE_DIR = join(process.cwd(), "data", "cache");
 const OUTPUT_DIR = join(process.cwd(), "data", "output");
@@ -27,7 +29,7 @@ export interface RunOptions {
   onEvent?: (event: PipelineEvent) => void;
 }
 
-interface PendingClassification {
+interface ClassificationTask {
   id: string;
   track: Track;
   lyrics: string;
@@ -80,7 +82,7 @@ async function runPipelineInner(
   const limited = options.limit ? tracks.slice(0, options.limit) : tracks;
   const results: SongClassification[] = [];
   const skipped: Array<{ track: string; reason: string }> = [];
-  const pending: PendingClassification[] = [];
+  const tasks: ClassificationTask[] = [];
 
   // Only emitted once a track actually needs a real fetch — if every lyric
   // is already cached, this phase produces no events at all.
@@ -107,19 +109,13 @@ async function runPipelineInner(
       continue;
     }
 
-    const classificationCachePath = join(CACHE_DIR, "classification", artistSlug, `${trackSlug}.json`);
-    const cached = options.force ? null : await readJsonCache<SongClassification>(classificationCachePath);
-    if (cached) {
-      results.push(cached);
-    } else {
-      pending.push({
-        id: track.mbid,
-        track,
-        lyrics: lyrics.plainLyrics,
-        lyricsSource: lyrics.source,
-        cachePath: classificationCachePath,
-      });
-    }
+    tasks.push({
+      id: track.mbid,
+      track,
+      lyrics: lyrics.plainLyrics,
+      lyricsSource: lyrics.source,
+      cachePath: join(CACHE_DIR, "classification", artistSlug, `${trackSlug}.json`),
+    });
   }
   if (lyricsFetchStarted) {
     emit({ type: "lyrics-ready", withLyrics: limited.length - skipped.length, total: limited.length });
@@ -131,44 +127,60 @@ async function runPipelineInner(
   let classifyDurationMs = 0;
   let lastModel: string | null = null;
 
-  async function classifyOne(item: PendingClassification): Promise<void> {
-    emit({ type: "classify-started", id: item.id });
+  // Every song goes through the same started/completed events — whether it's
+  // classified fresh or already cached — so a UI watching this stream can
+  // show the same "here's a result" moment either way. Only whether a real
+  // Jev call happens (and so whether it costs anything) differs.
+  async function processTask(task: ClassificationTask): Promise<void> {
+    emit({ type: "classify-started", id: task.id });
     try {
-      const result = await classifySong({
-        artist: artist.name,
-        track: item.track.title,
-        album: item.track.album,
-        releaseDate: item.track.releaseDate,
-        lyrics: item.lyrics,
-        lyricsSource: item.lyricsSource,
-      });
-      songsClassifiedThisRun += 1;
-      inputTokens += result.usage.inputTokens;
-      outputTokens += result.usage.outputTokens;
-      lastModel = result.usage.model;
-      await writeJsonCache(item.cachePath, result.classification);
-      results.push(result.classification);
-      emit({ type: "classify-completed", id: item.id, classification: result.classification, usage: result.usage });
+      const cached = options.force ? null : await readJsonCache<SongClassification>(task.cachePath);
+      let classification: SongClassification;
+      let usage: JevUsage;
+
+      if (cached) {
+        classification = cached;
+        usage = { model: lastModel ?? "cached", ...CACHED_USAGE };
+      } else {
+        const result = await classifySong({
+          artist: artist.name,
+          track: task.track.title,
+          album: task.track.album,
+          releaseDate: task.track.releaseDate,
+          lyrics: task.lyrics,
+          lyricsSource: task.lyricsSource,
+        });
+        classification = result.classification;
+        usage = result.usage;
+        songsClassifiedThisRun += 1;
+        inputTokens += usage.inputTokens;
+        outputTokens += usage.outputTokens;
+        lastModel = usage.model;
+        await writeJsonCache(task.cachePath, classification);
+      }
+
+      results.push(classification);
+      emit({ type: "classify-completed", id: task.id, classification, usage });
     } catch (error) {
-      emit({ type: "classify-failed", id: item.id, error });
+      emit({ type: "classify-failed", id: task.id, error });
       throw error;
     }
   }
 
-  if (pending.length > 0) {
+  if (tasks.length > 0) {
     emit({
       type: "classify-queued",
-      songs: pending.map((item) => ({
-        id: item.id,
-        title: item.track.title,
-        album: item.track.album,
-        releaseDate: item.track.releaseDate,
+      songs: tasks.map((task) => ({
+        id: task.id,
+        title: task.track.title,
+        album: task.track.album,
+        releaseDate: task.track.releaseDate,
       })),
     });
 
-    // Since lyrics are already on disk, classifying each song is an
-    // independent single Jev call — run several in flight at once instead of
-    // one at a time.
+    // Since lyrics are already on disk, processing each song (a cache read,
+    // or a Jev call for one that isn't cached) is independent — run several
+    // in flight at once instead of one at a time.
     const classifyPhaseStartedAt = Date.now();
     let nextIndex = 0;
     let firstError: unknown;
@@ -177,11 +189,11 @@ async function runPipelineInner(
     async function worker(): Promise<void> {
       for (;;) {
         if (stopRequested) return;
-        const item = pending[nextIndex++];
-        if (!item) return;
+        const task = tasks[nextIndex++];
+        if (!task) return;
 
         try {
-          await classifyOne(item);
+          await processTask(task);
         } catch (error) {
           // Let every other in-flight worker wind down cleanly (rather than
           // leaving unhandled rejections behind) before we rethrow below.
@@ -192,9 +204,11 @@ async function runPipelineInner(
       }
     }
 
-    await Promise.all(Array.from({ length: Math.min(CLASSIFY_CONCURRENCY, pending.length) }, worker));
+    await Promise.all(Array.from({ length: Math.min(CLASSIFY_CONCURRENCY, tasks.length) }, worker));
     // Wall-clock, not a sum of the individual calls: several run concurrently,
-    // so summing their durations would overstate how long this phase actually took.
+    // so summing their durations would overstate how long this phase actually
+    // took. For an entirely-cached run this ends up near zero, which is
+    // correct — no real classification work happened.
     classifyDurationMs = Date.now() - classifyPhaseStartedAt;
 
     if (firstError) throw firstError;

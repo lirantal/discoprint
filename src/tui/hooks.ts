@@ -18,17 +18,31 @@ export function useSpinnerFrame(active: boolean): string {
   return SPINNER_FRAMES[frame] ?? "⠋";
 }
 
-/** Milliseconds since this hook first became active, refreshed periodically while it stays active. */
+/**
+ * Milliseconds since this hook first became active, refreshed periodically
+ * while it stays active, then frozen at whatever it last read once it
+ * doesn't. "Frozen" has to mean the *returned value* stops changing, not
+ * just that this hook stops scheduling its own ticks — something else in
+ * the tree (e.g. a sibling's own animation) can still cause re-renders long
+ * after `active` goes false, and recomputing straight from Date.now() on
+ * every one of those would keep counting up regardless.
+ */
 export function useElapsedMs(active: boolean, refreshMs = 200): number {
   const startedAtRef = useRef<number | null>(null);
+  const frozenAtRef = useRef<number | null>(null);
   const [, forceTick] = useState(0);
   startedAtRef.current ??= Date.now();
 
   useEffect(() => {
     if (!active) return;
+    frozenAtRef.current = null;
     const timer = setInterval(() => forceTick((t) => t + 1), refreshMs);
     return () => clearInterval(timer);
   }, [active, refreshMs]);
 
+  if (!active) {
+    frozenAtRef.current ??= Date.now() - startedAtRef.current;
+    return frozenAtRef.current;
+  }
   return Date.now() - startedAtRef.current;
 }

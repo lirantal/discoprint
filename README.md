@@ -57,20 +57,31 @@ In a real terminal, classifying is one continuous [Ink](https://github.com/vadim
 app (`src/tui/`), not a live animation that hands off to a separate
 plain-text dashboard afterward. While work is happening: a status header
 (artist, current phase, elapsed time), a scrolling log of songs classified
-so far — since lyrics are already on disk by the time classification
-starts, several songs classify concurrently instead of one at a time — a
-spotlight panel that reveals each result's theme/mood/complexity/explicit/
-first-person as it lands, a running theme legend, and an aggregate stats
-footer. The log scrolls in place once it outgrows the terminal instead of
-endlessly printing new lines, so a 200-song run renders the same frame size
-as a 5-song one. Once done, that live view settles and morphs into the
-same dashboard (mood arc, theme mix, per-song table, usage footer) that
-`discoprint visualize` shows — same content, same boxed visual style as the
-live view itself, not a fallback to plain text — committed permanently to
-your scrollback (via Ink's `<Static>`) rather than erased when the app
-exits. `--verbose`, CI, and non-TTY output
-(e.g. piped to a file) skip the live view and print a plain-text progress
-log followed by the same final dashboard instead.
+so far, a spotlight panel that reveals each result's theme/mood/complexity/
+explicit/first-person as it lands, a running theme legend, and an aggregate
+stats footer. The log scrolls in place once it outgrows the terminal
+instead of endlessly printing new lines, so a 200-song run renders the same
+frame size as a 5-song one.
+
+Since lyrics are already on disk by the time classification starts, songs
+classify concurrently instead of one at a time — including ones already
+cached, which cost nothing and take no real time, but still go through the
+same started/completed events a fresh Jev call would. The spotlight panel
+paces itself against how many songs there are (not how fast they actually
+completed), so it always plays through every result one at a time — a
+fully-cached rerun gets the same animated walkthrough as a brand-new
+classify run, instead of skipping straight to the end for lack of anything
+to visibly wait on.
+
+Once done, that live view settles and morphs into the same dashboard
+(an OVERVIEW panel with the mood arc and theme mix, a SONGS panel with the
+adaptive per-song/per-album table, a usage footer) that `discoprint
+visualize` shows — same content, same boxed visual style as the live
+view's own panels throughout, not a fallback to plain text — committed
+permanently to your scrollback (via Ink's `<Static>`) rather than erased
+when the app exits. `--verbose`, CI, and non-TTY output (e.g. piped to a
+file) skip the live view and print a plain-text progress log followed by
+the same final dashboard instead.
 
 ## How it works
 

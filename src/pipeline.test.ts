@@ -4,6 +4,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { sleep } from "./util.js";
+import type { PipelineEvent } from "./pipeline-events.js";
 
 process.env.MUSICBRAINZ_MIN_INTERVAL_MS = "0";
 process.env.MUSICBRAINZ_RETRY_BASE_MS = "0";
@@ -160,6 +161,20 @@ test("runPipeline rerun only re-resolves the artist; discography/lyrics/classifi
   assert.equal(meta.totalSongsInOutput, 1);
   assert.deepEqual(meta.tokens, { input: 0, output: 0 });
   assert.equal(meta.estimatedCostUsd, 0);
+});
+
+test("runPipeline emits classify-queued/started/completed for cached songs too, with zero usage — so a live view can still animate a fully-cached run", async (t) => {
+  t.mock.method(globalThis, "fetch", async (url: string) => router(url, [mockArtistSearch]));
+
+  const events: PipelineEvent[] = [];
+  await runPipeline("Test Artist", { onEvent: (e) => events.push(e) });
+
+  assert.ok(events.some((e) => e.type === "classify-queued"));
+  assert.ok(events.some((e) => e.type === "classify-started"));
+  const completed = events.find((e): e is Extract<PipelineEvent, { type: "classify-completed" }> => e.type === "classify-completed");
+  assert.ok(completed);
+  assert.equal(completed.usage.inputTokens, 0);
+  assert.equal(completed.usage.outputTokens, 0);
 });
 
 test("runPipeline --force re-fetches discography and re-classifies, but not lyrics", async (t) => {

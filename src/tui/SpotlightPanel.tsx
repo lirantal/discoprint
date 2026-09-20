@@ -4,11 +4,18 @@ import { themeColor } from "../viz/theme-palette.js";
 import { useSpinnerFrame } from "./hooks.js";
 import { StatBar } from "./StatBar.js";
 import type { AppState } from "./state.js";
-import { useSpotlightSequencer } from "./useSpotlightSequencer.js";
+import type { Spotlight as SpotlightData } from "./useSpotlightSequencer.js";
 
 /** Right panel: the most recently classified song's stats revealing in, plus a compact list of what's still in flight. */
-export function SpotlightPanel({ state, width }: { state: AppState; width: number }): React.JSX.Element {
-  const spotlight = useSpotlightSequencer(state.log, state.phase === "done");
+export function SpotlightPanel({
+  state,
+  spotlight,
+  width,
+}: {
+  state: AppState;
+  spotlight: SpotlightData | null;
+  width: number;
+}): React.JSX.Element {
   const inFlightEntries = [...state.inFlight.entries()];
   const spinner = useSpinnerFrame(inFlightEntries.length > 0);
 
