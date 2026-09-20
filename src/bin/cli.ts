@@ -128,7 +128,11 @@ async function runClassifyCommand(argv: string[]): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const argv = process.argv.slice(2);
+  // Some package-manager script runners (observed with pnpm + tsx) forward a
+  // literal "--" through to the script instead of stripping it, corrupting
+  // whatever comes after (e.g. `pnpm run classify -- "Bon Jovi"`). Drop any
+  // stray "--" tokens so the CLI behaves the same regardless of what invoked it.
+  const argv = process.argv.slice(2).filter((arg) => arg !== "--");
 
   if (argv[0] === "--help" || argv[0] === "-h") {
     console.log(USAGE);
