@@ -9,5 +9,6 @@ dependencies:
     - git: typesafe-ai/skills
       skills:
         - typesafe-ai
+    - heygen-com/hyperframes#ab6cbb383e9072a121714bd594cfba6a5a5ecbe7
   mcp: []
 scripts: {}

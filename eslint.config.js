@@ -15,6 +15,7 @@ export default defineConfig([
     ".husky/**",
     "data/**",
     "apm_modules/**",
+    ".claude/skills/**",
   ]),
   js.configs.recommended,
   ...tseslint.configs.recommended,
