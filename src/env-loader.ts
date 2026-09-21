@@ -48,6 +48,18 @@ function resolveVarlockCliPath(): string {
  * override above keeps off the terminal.
  */
 export function loadEnv(schemaPath: string): Record<string, string> {
+  // initVarlockEnv() (below) resets process.env to a snapshot it captured on
+  // its *own* first load, then re-applies whatever this run resolved —
+  // including deleting any key that resolved to undefined. That resolution
+  // happens in a separate `varlock` subprocess, spawned fresh below; its own
+  // detection of "this is a process.env override" doesn't have to agree with
+  // what's already sitting in *our* process.env, and if it disagrees for any
+  // reason, it can delete a variable (e.g. an already-exported
+  // TYPESAFE_API_KEY) that was never ours to touch. Snapshot it first and
+  // restore anything that was there before and came out missing after —
+  // never let this leave process.env less populated than it started.
+  const before = { ...process.env };
+
   const cwd = process.cwd();
   // Inside a clone of this repo, the bundled schema *is* cwd's own
   // .env.schema — passing both as separate --path entries would load that
@@ -83,6 +95,11 @@ export function loadEnv(schemaPath: string): Record<string, string> {
     (globalThis as Record<string, unknown>).__varlockLoadedEnv = parsed;
     patchGlobalConsole();
     internal.initVarlockEnv({ allowFail: true });
+
+    for (const key of Object.keys(before)) {
+      if (before[key] && !process.env[key]) process.env[key] = before[key];
+    }
+
     return (parsed?.errors?.configItems as Record<string, string> | undefined) ?? {};
   } catch {
     // Malformed output — leave process.env untouched.
