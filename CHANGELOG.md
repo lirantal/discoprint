@@ -1,5 +1,11 @@
 # discoprint
 
+## 0.2.0
+
+### Minor Changes
+
+- [`e72ac65`](https://github.com/lirantal/discoprint/commit/e72ac659e3d826184a398e47c9e0b0164f3e355b) Thanks [@lirantal](https://github.com/lirantal)! - feat: show a CLASSIFICATION AVERAGE panel — the live view's "just classified" readout, averaged across the whole discography
+
 ## 0.1.2
 
 ### Patch Changes
