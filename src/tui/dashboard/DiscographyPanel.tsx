@@ -38,10 +38,14 @@ export function DiscographyPanel({
       <Text bold>DISCOGRAPHY</Text>
       <Box marginTop={1} flexWrap="wrap" width={contentWidth}>
         {stats.map((stat, i) => (
+          // The separator trails its own item rather than leading the next
+          // one, so a wrap break lands after "· " instead of before it — a
+          // wrapped line starts flush with "busiest album ...", not with an
+          // orphaned "· " hanging off the left edge.
           <Box key={stat.label}>
-            {i > 0 && <Text dimColor> {"·"} </Text>}
             <Text dimColor>{stat.label} </Text>
             <Text bold>{stat.value}</Text>
+            {i < stats.length - 1 && <Text dimColor> {"·"} </Text>}
           </Box>
         ))}
       </Box>
