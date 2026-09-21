@@ -135,22 +135,28 @@ async function resolveArtistInteractively(title: string): Promise<string> {
  * varlock hard-failing before we get a chance to ask). Only sets it for this
  * process — never written to disk. Returns whether it prompted, so the
  * caller can add the same visual separation as the artist/limit prompts.
+ *
+ * `loadError`, from `loadEnv`'s return value, is the reason a *declared*
+ * value (e.g. an `op(...)` reference) failed to resolve — distinct from
+ * simply never having set one, and worth telling the user directly instead
+ * of a generic "not found" that reads as if they hadn't set anything.
  */
-async function ensureApiKey(): Promise<boolean> {
+async function ensureApiKey(loadError: string | undefined): Promise<boolean> {
   if (process.env.TYPESAFE_API_KEY) return false;
+
+  const reason = loadError
+    ? `Couldn't resolve it from your .env: ${loadError}`
+    : "No TYPESAFE_API_KEY found in your environment or .env file.";
 
   if (!canPromptInteractively()) {
     throw new KnownError(
-      "Missing TYPESAFE_API_KEY.\nSet it in your local .env (see README) — get a key at https://console.typesafe.ai/keys.",
+      `${reason}\nSet it in your local .env (see README) — get a key at https://console.typesafe.ai/keys.`,
     );
   }
 
   const answer = await promptPassword({
     title: "TypeSafe API key needed",
-    details: [
-      "No TYPESAFE_API_KEY found in your environment or .env file.",
-      "Get one at https://console.typesafe.ai/keys — used for this run only, not saved to disk.",
-    ],
+    details: [reason, "Get one at https://console.typesafe.ai/keys — used for this run only, not saved to disk."],
     summaryLabel: "TYPESAFE_API_KEY",
     validate: (value) => (value === "" ? "Enter an API key." : undefined),
   });
@@ -273,9 +279,9 @@ async function runClassifyCommand(argv: string[]): Promise<void> {
 
   // Only needed on this path: `visualize` alone needs no API key.
   // See .env.schema, src/env-loader.ts, and https://varlock.dev.
-  loadEnv(bundledSchemaPath());
+  const loadErrors = loadEnv(bundledSchemaPath());
 
-  const apiKeyPrompted = await ensureApiKey();
+  const apiKeyPrompted = await ensureApiKey(loadErrors.TYPESAFE_API_KEY);
 
   // Separates the prompt Q&A above from the classify run's own output below.
   if (wasInteractive || apiKeyPrompted) console.log();

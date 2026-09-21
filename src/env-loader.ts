@@ -39,8 +39,15 @@ function resolveVarlockCliPath(): string {
  * is swallowed and simply leaves `process.env` as it was, so a config
  * problem here degrades to the interactive TYPESAFE_API_KEY prompt in
  * cli.ts rather than crashing the whole CLI on something recoverable.
+ *
+ * Returns per-item resolution errors (e.g. `{ TYPESAFE_API_KEY: "Unknown
+ * resolver function: op()" }`) so a caller can say *why* a value is
+ * missing — "couldn't resolve your op() reference" is a very different
+ * problem from "you haven't set anything at all", and the pretty banner
+ * that would normally explain the difference is exactly what the stdio
+ * override above keeps off the terminal.
  */
-export function loadEnv(schemaPath: string): void {
+export function loadEnv(schemaPath: string): Record<string, string> {
   const cwd = process.cwd();
   // Inside a clone of this repo, the bundled schema *is* cwd's own
   // .env.schema — passing both as separate --path entries would load that
@@ -69,13 +76,16 @@ export function loadEnv(schemaPath: string): void {
     stdout = (err as { stdout?: string } | undefined)?.stdout ?? "";
   }
 
-  if (!stdout) return;
+  if (!stdout) return {};
 
   try {
-    (globalThis as Record<string, unknown>).__varlockLoadedEnv = JSON.parse(stdout);
+    const parsed = JSON.parse(stdout);
+    (globalThis as Record<string, unknown>).__varlockLoadedEnv = parsed;
     patchGlobalConsole();
     internal.initVarlockEnv({ allowFail: true });
+    return (parsed?.errors?.configItems as Record<string, string> | undefined) ?? {};
   } catch {
     // Malformed output — leave process.env untouched.
+    return {};
   }
 }
