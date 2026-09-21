@@ -40,12 +40,16 @@ export function SpotlightPanel({
         <Text dimColor>Waiting for the first result…</Text>
       )}
 
-      {inFlightEntries.length > 0 && (
+      {state.maxInFlight > 0 && (
         <Box marginTop={1} flexDirection="column">
           <Text dimColor>in flight ({inFlightEntries.length})</Text>
-          {inFlightEntries.map(([id, songTitle]) => (
-            <Text key={id} dimColor>
-              {spinner} {songTitle}
+          {/* Padded to maxInFlight (the concurrency high-water mark) rather
+              than inFlightEntries.length, so this block holds a constant
+              height as songs start and finish instead of growing and
+              shrinking on every event. */}
+          {Array.from({ length: state.maxInFlight }, (_, i) => inFlightEntries[i]).map((entry, i) => (
+            <Text key={entry?.[0] ?? `empty-${i}`} dimColor>
+              {entry ? `${spinner} ${entry[1]}` : " "}
             </Text>
           ))}
         </Box>

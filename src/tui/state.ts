@@ -21,6 +21,10 @@ export interface AppState {
   totalToClassify: number;
   queuedById: Map<string, QueuedSong>;
   inFlight: Map<string, string>;
+  /** High-water mark of inFlight.size — lets the UI reserve a fixed number of
+   * rows for the in-flight list once concurrency has ramped up, instead of
+   * growing and shrinking every time a song starts or finishes. */
+  maxInFlight: number;
   log: CompletedSong[];
   runningTokens: { input: number; output: number };
   runningCount: number;
@@ -36,6 +40,7 @@ export function initialState(artistQuery: string): AppState {
     totalToClassify: 0,
     queuedById: new Map(),
     inFlight: new Map(),
+    maxInFlight: 0,
     log: [],
     runningTokens: { input: 0, output: 0 },
     runningCount: 0,
@@ -90,7 +95,8 @@ export function reduce(state: AppState, event: PipelineEvent): AppState {
 
     case "classify-started": {
       const title = state.queuedById.get(event.id)?.title ?? event.id;
-      return { ...state, inFlight: new Map(state.inFlight).set(event.id, title) };
+      const inFlight = new Map(state.inFlight).set(event.id, title);
+      return { ...state, inFlight, maxInFlight: Math.max(state.maxInFlight, inFlight.size) };
     }
 
     case "classify-completed": {
