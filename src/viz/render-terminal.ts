@@ -1,5 +1,12 @@
 import { bold, clamp, colorsEnabled, dim, fg, moodGradientHex } from "./colors.js";
 import { resample, type AlbumGroup, type VisualizationData } from "./data.js";
+import {
+  computeDiscographyStats,
+  GRID_CELL_WIDTH,
+  gridColumns,
+  gridRows,
+  hiddenSongCount,
+} from "./discography-grid.js";
 import { THEME_PALETTE, themeColor } from "./theme-palette.js";
 import { formatDuration, formatTokenCount, formatUsd } from "../format.js";
 import type { SongClassification } from "../types.js";
@@ -54,6 +61,12 @@ export function renderTerminal(data: VisualizationData, options: TerminalRenderO
     lines.push(distributionBar);
   }
   lines.push("");
+
+  const discography = renderDiscographyGrid(data, width, colorEnabled);
+  if (discography.length > 0) {
+    lines.push(...discography);
+    lines.push("");
+  }
 
   const reserved = lines.length + 4; // + the column header row we're about to add
   const availableRows = Math.max(3, height - reserved);
@@ -166,6 +179,36 @@ function renderThemeDistributionBar(data: VisualizationData, width: number, colo
 
   const bar = segments.map((s) => fg("█".repeat(s.width), s.hex, colorEnabled)).join("");
   return `${dim("theme mix".padEnd(LEGEND_LABEL_WIDTH), colorEnabled)}${bar}`;
+}
+
+/**
+ * The DISCOGRAPHY section: a row of at-a-glance stats, then a
+ * GitHub-contributions-style grid — one swatch per classified song in
+ * chronological order, colored by theme, wrapping to fill `width`. Same
+ * content/layout logic as the Ink dashboard's DiscographyPanel.tsx, just
+ * baked into ANSI strings instead of Ink components.
+ */
+function renderDiscographyGrid(data: VisualizationData, width: number, colorEnabled: boolean): string[] {
+  if (data.songs.length === 0) return [];
+
+  const lines: string[] = [];
+  lines.push(bold("DISCOGRAPHY", colorEnabled));
+
+  const stats = computeDiscographyStats(data);
+  lines.push(stats.map((s) => `${dim(`${s.label} `, colorEnabled)}${bold(s.value, colorEnabled)}`).join("   "));
+  lines.push("");
+  lines.push(dim("song grid (chronological, colored by theme)", colorEnabled));
+
+  const columns = gridColumns(width, GRID_CELL_WIDTH);
+  const rows = gridRows(data.songs, columns);
+  for (const row of rows) {
+    lines.push(row.map((song) => fg("██", themeColor(song.theme).hex, colorEnabled)).join(" "));
+  }
+
+  const hidden = hiddenSongCount(data.songs.length, columns);
+  if (hidden > 0) lines.push(dim(`+ ${hidden} more not shown`, colorEnabled));
+
+  return lines;
 }
 
 function renderBar(value: number, max: number, width: number, colorHex: string, colorEnabled: boolean): string {
