@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describeError, KnownError } from "../errors.js";
 import type { PipelineEvent } from "../pipeline-events.js";
 import { runPipeline } from "../pipeline.js";
-import { canPromptInteractively, promptText } from "../prompt.js";
+import { canPromptInteractively, promptPassword, promptText } from "../prompt.js";
 import { ALREADY_DISPLAYED, runClassifyUI } from "../tui/runClassifyUI.js";
 import { canAnimate } from "../tty.js";
 import { slugify } from "../util.js";
@@ -87,6 +87,39 @@ async function resolveArtistInteractively(title: string): Promise<string> {
   }
 
   return answer.value;
+}
+
+/**
+ * Prompts for TYPESAFE_API_KEY when it's missing from the environment/.env
+ * (not marked @required in .env.schema, precisely so this can run instead of
+ * varlock hard-failing before we get a chance to ask). Only sets it for this
+ * process — never written to disk. Returns whether it prompted, so the
+ * caller can add the same visual separation as the artist/limit prompts.
+ */
+async function ensureApiKey(): Promise<boolean> {
+  if (process.env.TYPESAFE_API_KEY) return false;
+
+  if (!canPromptInteractively()) {
+    throw new KnownError(
+      "Missing TYPESAFE_API_KEY.\nSet it in your local .env (see README) — get a key at https://console.typesafe.ai/keys.",
+    );
+  }
+
+  const answer = await promptPassword({
+    title: "TypeSafe API key needed",
+    details: [
+      "No TYPESAFE_API_KEY found in your environment or .env file.",
+      "Get one at https://console.typesafe.ai/keys — used for this run only, not saved to disk.",
+    ],
+    summaryLabel: "TYPESAFE_API_KEY",
+    validate: (value) => (value === "" ? "Enter an API key." : undefined),
+  });
+  if (answer.status === "cancelled") {
+    process.exit(1);
+  }
+
+  process.env.TYPESAFE_API_KEY = answer.value;
+  return true;
 }
 
 async function printVisualization(artist: string): Promise<void> {
@@ -196,12 +229,14 @@ async function runClassifyCommand(argv: string[]): Promise<void> {
     }
   }
 
-  // Separates the prompt Q&A above from the classify run's own output below.
-  if (wasInteractive) console.log();
-
   // Loaded lazily and only on this path: `visualize` alone needs no API key.
   // See .env.schema and https://varlock.dev.
   await import("varlock/auto-load");
+
+  const apiKeyPrompted = await ensureApiKey();
+
+  // Separates the prompt Q&A above from the classify run's own output below.
+  if (wasInteractive || apiKeyPrompted) console.log();
 
   const runOptions = { limit: args.limit, includeNonAlbums: args.includeNonAlbums, force: args.force };
   const showDashboard = !args.noVisualize;

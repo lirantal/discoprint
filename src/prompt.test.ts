@@ -1,11 +1,26 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { PassThrough } from "node:stream";
-import { canPromptInteractively, promptText } from "./prompt.js";
+import { canPromptInteractively, promptPassword, promptText } from "./prompt.js";
 
 function fakeTty(): PassThrough & { isTTY: boolean } {
   const stream = new PassThrough() as PassThrough & { isTTY: boolean };
   stream.isTTY = true;
+  return stream;
+}
+
+/** A TTY-like stream that also supports setRawMode, so promptPassword takes its masked-echo path (rather than the unmasked askLine fallback used for the plain fakeTty()). */
+function fakeRawTty(): PassThrough & { isTTY: boolean; isRaw: boolean; setRawMode: (mode: boolean) => void } {
+  const stream = new PassThrough() as PassThrough & {
+    isTTY: boolean;
+    isRaw: boolean;
+    setRawMode: (mode: boolean) => void;
+  };
+  stream.isTTY = true;
+  stream.isRaw = false;
+  stream.setRawMode = (mode: boolean) => {
+    stream.isRaw = mode;
+  };
   return stream;
 }
 
@@ -127,5 +142,96 @@ test("promptText", async (t) => {
 
     const result = await pending;
     assert.deepEqual(result, { status: "cancelled" });
+  });
+});
+
+test("promptPassword", async (t) => {
+  await t.test("returns cancelled immediately when not interactive (no TTY)", async () => {
+    const input = new PassThrough();
+    const output = new PassThrough();
+    const result = await promptPassword({ title: "API key?", summaryLabel: "TYPESAFE_API_KEY", input, output });
+    assert.deepEqual(result, { status: "cancelled" });
+  });
+
+  await t.test("masks each keystroke and never echoes the submitted value", async () => {
+    const input = fakeRawTty();
+    const output = fakeRawTty();
+    const out = collect(output);
+
+    const pending = promptPassword({ title: "API key?", summaryLabel: "TYPESAFE_API_KEY", input, output, env: {} });
+    input.write("sk-secret");
+    input.write("\n");
+    const result = await pending;
+
+    assert.deepEqual(result, { status: "submitted", value: "sk-secret" });
+    assert.match(out.text(), /\*{9}/);
+    assert.doesNotMatch(out.text(), /sk-secret/);
+    assert.doesNotMatch(out.text(), /TYPESAFE_API_KEY: /);
+    // Raw mode is switched back off once the prompt settles.
+    assert.equal(input.isRaw, false);
+  });
+
+  await t.test("backspace removes the last masked character", async () => {
+    const input = fakeRawTty();
+    const output = fakeRawTty();
+    const out = collect(output);
+
+    const pending = promptPassword({ title: "API key?", summaryLabel: "TYPESAFE_API_KEY", input, output, env: {} });
+    input.write("abc");
+    input.write("\x7f"); // backspace (DEL)
+    input.write("d\n");
+    const result = await pending;
+
+    assert.deepEqual(result, { status: "submitted", value: "abd" });
+    // \b in a regex means "word boundary", not backspace, so match the raw byte directly.
+    assert.match(out.text(), /\*{3}\x08 \x08\*/);
+  });
+
+  await t.test("cancels on Ctrl+C", async () => {
+    const input = fakeRawTty();
+    const output = fakeRawTty();
+
+    const pending = promptPassword({ title: "API key?", summaryLabel: "TYPESAFE_API_KEY", input, output, env: {} });
+    input.write("partial");
+    input.write("\x03"); // Ctrl+C
+    const result = await pending;
+
+    assert.deepEqual(result, { status: "cancelled" });
+  });
+
+  await t.test("re-prompts on a validation error, then accepts a valid value", async () => {
+    const input = fakeRawTty();
+    const output = fakeRawTty();
+    const out = collect(output);
+
+    const pending = promptPassword({
+      title: "API key?",
+      summaryLabel: "TYPESAFE_API_KEY",
+      validate: (value) => (value === "" ? "Enter an API key." : undefined),
+      input,
+      output,
+      env: {},
+    });
+
+    input.write("\n"); // empty -> validation error, should re-prompt
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    input.write("sk-secret\n");
+
+    const result = await pending;
+    assert.deepEqual(result, { status: "submitted", value: "sk-secret" });
+    assert.match(out.text(), /Enter an API key\./);
+  });
+
+  await t.test("falls back to an unmasked read when the input stream doesn't support raw mode", async () => {
+    const input = fakeTty();
+    const output = fakeTty();
+    const out = collect(output);
+
+    const pending = promptPassword({ title: "API key?", summaryLabel: "TYPESAFE_API_KEY", input, output, env: {} });
+    input.write("sk-secret\n");
+    const result = await pending;
+
+    assert.deepEqual(result, { status: "submitted", value: "sk-secret" });
+    assert.doesNotMatch(out.text(), /TYPESAFE_API_KEY: /);
   });
 });

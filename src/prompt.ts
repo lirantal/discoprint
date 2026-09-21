@@ -104,6 +104,121 @@ function askLine(input: PromptInput, output: PromptOutput, question: string): Pr
   });
 }
 
+type RawModeInput = PromptInput & { setRawMode?: (mode: boolean) => void; isRaw?: boolean };
+
+// Masks each typed character as "*" instead of the terminal's own echo, for
+// secret input (e.g. an API key). Requires raw mode, so it only masks on a
+// real TTY input stream; falls back to an unmasked line read otherwise (e.g.
+// the PassThrough test doubles in prompt.test.ts, which have no TTY driver
+// to disable echo on in the first place).
+function readMaskedLine(input: PromptInput, output: PromptOutput, prompt: string): Promise<string | undefined> {
+  const rawInput = input as RawModeInput;
+  if (typeof rawInput.setRawMode !== "function") {
+    return askLine(input, output, prompt);
+  }
+  const setRawMode = rawInput.setRawMode;
+
+  return new Promise((resolve) => {
+    let buffer = "";
+    let settled = false;
+    const wasRaw = rawInput.isRaw ?? false;
+
+    function settle(value: string | undefined): void {
+      if (settled) return;
+      settled = true;
+      input.removeListener("data", onData);
+      setRawMode(wasRaw);
+      input.pause();
+      resolve(value);
+    }
+
+    function onData(chunk: string): void {
+      for (const char of chunk) {
+        const code = char.charCodeAt(0);
+
+        if (char === "\r" || char === "\n") {
+          output.write("\n");
+          settle(buffer);
+          return;
+        }
+        if (code === 3) {
+          // Ctrl+C
+          output.write("\n");
+          settle(undefined);
+          return;
+        }
+        if (code === 127 || char === "\b") {
+          // Backspace (DEL)
+          if (buffer.length > 0) {
+            buffer = buffer.slice(0, -1);
+            output.write("\b \b");
+          }
+          continue;
+        }
+        if (code === 4 && buffer.length === 0) {
+          // Ctrl+D on an empty line
+          output.write("\n");
+          settle(undefined);
+          return;
+        }
+        if (code >= 32) {
+          buffer += char;
+          output.write("*");
+        }
+      }
+    }
+
+    output.write(prompt);
+    setRawMode(true);
+    input.resume();
+    input.setEncoding("utf8");
+    input.on("data", onData);
+  });
+}
+
+export interface PasswordPromptOptions {
+  title: string;
+  details?: readonly string[];
+  summaryLabel: string;
+  validate?: (value: string) => string | undefined;
+  input?: PromptInput;
+  output?: PromptOutput;
+  env?: NodeJS.ProcessEnv;
+}
+
+/** Like {@link promptText}, but masks each typed character and never echoes the submitted value. */
+export async function promptPassword(options: PasswordPromptOptions): Promise<TextPromptResult> {
+  const input = options.input ?? process.stdin;
+  const output = options.output ?? process.stdout;
+  const env = options.env ?? process.env;
+
+  if (!canPromptInteractively(input, output, env)) {
+    return { status: "cancelled" };
+  }
+
+  output.write(`${formatPromptTitle(options.title)}\n`);
+  for (const detail of options.details ?? []) {
+    output.write(`${formatPromptDetailLine(detail)}\n`);
+  }
+
+  for (;;) {
+    const value = await readMaskedLine(input, output, `${promptRail()}  `);
+
+    if (value === undefined) {
+      output.write(`${formatPromptEnd()}\n${options.summaryLabel}: canceled\n`);
+      return { status: "cancelled" };
+    }
+
+    const error = options.validate?.(value);
+    if (error === undefined) {
+      output.write(`${formatPromptEnd()}\n`);
+      return { status: "submitted", value };
+    }
+
+    output.write(`${promptRail()}  ${error}\n`);
+  }
+}
+
 export async function promptText(options: TextPromptOptions): Promise<TextPromptResult> {
   const input = options.input ?? process.stdin;
   const output = options.output ?? process.stdout;

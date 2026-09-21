@@ -47,6 +47,30 @@ discoprint "Bon Jovi" --no-visualize
 discoprint visualize "Bon Jovi"
 ```
 
+### API key
+
+Classifying needs a [TypeSafe](https://console.typesafe.ai/keys) API key (Jev). If
+`TYPESAFE_API_KEY` isn't set — in your shell, a `.env` in the current directory, or wherever
+else your environment normally sources it from — the CLI prompts for it interactively (masked,
+like a password) and uses it for that run only; it's never written to disk. To skip the prompt
+every time, either export it in your shell profile:
+
+```bash
+export TYPESAFE_API_KEY=sk-...
+```
+
+or drop it in a `.env` file in the directory you run `discoprint` from:
+
+```bash
+# .env
+TYPESAFE_API_KEY=sk-...
+```
+
+Note: the `op(op://...)` 1Password-reference syntax mentioned in
+[Local development setup](#local-development-setup) below only works inside a clone of this
+repo — it depends on `.env.schema`'s plugin declaration, which isn't published with the npm
+package. For a global/`npx` install, paste the literal key instead.
+
 Flags for the classify path: `--limit N` (default 100 when prompted interactively,
 unbounded otherwise), `--include-non-albums` (include singles/live albums/compilations,
 default is albums + EPs only), `--force` (re-classify ignoring cached results),
