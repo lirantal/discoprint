@@ -11,16 +11,14 @@ process.env.MUSICBRAINZ_RETRY_BASE_MS = "0";
 process.env.LRCLIB_MIN_INTERVAL_MS = "0";
 process.env.TYPESAFE_API_KEY = "test-key";
 
-const originalCwd = process.cwd();
 const tmpDir = await mkdtemp(join(tmpdir(), "alc-pipeline-test-"));
-process.chdir(tmpDir);
+// Isolates cache/output from the real default (XDG config dir) — see
+// resolveDataDir() in src/paths.ts.
+process.env.DISCOPRINT_DATA_DIR = join(tmpDir, "data");
 
-// Imported only after chdir, since pipeline.ts pins its cache/output dirs to
-// process.cwd() at module load time.
 const { runPipeline } = await import("./pipeline.js");
 
 test.after(async () => {
-  process.chdir(originalCwd);
   await rm(tmpDir, { recursive: true, force: true });
 });
 

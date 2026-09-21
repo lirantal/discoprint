@@ -7,13 +7,19 @@ invalidation rules, and the traps.
 
 ## Layout
 
+`<data dir>` is resolved by `resolveDataDir()` in `src/paths.ts`: an explicit
+`dataDir`/`--data-dir` override, else `DISCOPRINT_DATA_DIR`, else
+`$XDG_CONFIG_HOME/discoprint` (falling back to `~/.config/discoprint`). It's
+resolved fresh inside `runPipelineInner()` on every call — nothing pins it at
+module load time.
+
 ```text
-data/cache/musicbrainz/<artist-slug>.json                full discography (Track[])
-data/cache/lyrics/<artist-slug>/<track-slug>.json          one LyricsResult per track
-data/cache/classification/<artist-slug>/<track-slug>.json  one SongClassification per track
-data/output/<artist-slug>.json                             SongClassification[] — the final result
-data/output/<artist-slug>-skipped.json                     { track, reason }[] — no lyrics found
-data/output/<artist-slug>-meta.json                        ClassificationRunMeta — last run's stats
+<data dir>/cache/musicbrainz/<artist-slug>.json                full discography (Track[])
+<data dir>/cache/lyrics/<artist-slug>/<track-slug>.json          one LyricsResult per track
+<data dir>/cache/classification/<artist-slug>/<track-slug>.json  one SongClassification per track
+<data dir>/output/<artist-slug>.json                             SongClassification[] — the final result
+<data dir>/output/<artist-slug>-skipped.json                     { track, reason }[] — no lyrics found
+<data dir>/output/<artist-slug>-meta.json                        ClassificationRunMeta — last run's stats
 ```
 
 `<artist-slug>` and `<track-slug>` both come from `slugify()` in
@@ -45,7 +51,7 @@ has its _old_ answer until re-classified with `--force`, and there's no
 automated way to tell which cache entries are stale. If you change a
 classifier's wording/rubric in a way that would meaningfully change
 answers, say so in the PR description and consider whether existing users'
-`data/cache/classification/` needs a `--force` rerun to stay meaningful.
+`<data dir>/cache/classification/` needs a `--force` rerun to stay meaningful.
 
 Artist resolution is **never** cached — `searchArtist()` is a live
 MusicBrainz call on every single run, unconditionally, regardless of
@@ -72,12 +78,12 @@ earlier invocation.
 
 ## The output file is a flat rewrite, not an append
 
-`data/output/<artist-slug>.json` is fully rewritten from the in-memory
+`<data dir>/output/<artist-slug>.json` is fully rewritten from the in-memory
 `results` array on every run — it is not incrementally appended to. This
 is safe because `runPipeline()` always processes the _entire_ requested
 scope (`options.limit ? tracks.slice(0, limit) : tracks`) each time,
 reading each individual song's classification from
-`data/cache/classification/` (a hit) or generating it fresh (a miss) —
+`<data dir>/cache/classification/` (a hit) or generating it fresh (a miss) —
 the union of cache hits and fresh classifications for the current scope is
 always the complete, correct output, so a flat rewrite is correct and
 there's no need for incremental merge logic. If you ever change

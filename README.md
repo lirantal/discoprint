@@ -75,7 +75,8 @@ Flags for the classify path: `--limit N` (default 100 when prompted interactivel
 unbounded otherwise), `--include-non-albums` (include singles/live albums/compilations,
 default is albums + EPs only), `--force` (re-classify ignoring cached results),
 `--verbose` (print per-step progress — artist resolution, discography fetch, one
-line per song — instead of just the one-line summary shown by default).
+line per song — instead of just the one-line summary shown by default), `--data-dir PATH`
+(where cache/output files live — see [Caching](#caching) below).
 
 In a real terminal, classifying is one continuous [Ink](https://github.com/vadimdemedes/ink)
 app (`src/tui/`), not a live animation that hands off to a separate
@@ -116,20 +117,25 @@ the same final dashboard instead.
 3. **Jev** classifies each song against 5 atomic questions, batched into a single
    `systemOne` call per track (see [Classifiers](#classifiers) below).
 
-Every stage is cached to disk under `data/cache/`, so re-runs are incremental and
-you can safely interrupt a long run (MusicBrainz is rate-limited to 1 req/sec, so
-a big discography takes a few minutes just for step 1). See [Caching](#caching)
+Every stage is cached to disk under `<data dir>/cache/`, so re-runs are incremental
+and you can safely interrupt a long run (MusicBrainz is rate-limited to 1 req/sec,
+so a big discography takes a few minutes just for step 1). See [Caching](#caching)
 below for exactly what's cached and what re-triggers a real network call.
 
 ## Caching
 
-| Step                                 | Cached?                 | Where                                                              | Re-fetched by                                                |
-| ------------------------------------ | ----------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------ |
-| Resolve artist name → MusicBrainz ID | No — always a live call | —                                                                  | every run, unconditionally                                   |
-| Fetch discography (albums/tracks)    | Yes                     | `data/cache/musicbrainz/<artist-slug>.json`                        | `--force`                                                    |
-| Fetch lyrics per song                | Yes                     | `data/cache/lyrics/<artist-slug>/<track-slug>.json`                | nothing — delete the file yourself to retry a specific track |
-| Classify a song with Jev             | Yes                     | `data/cache/classification/<artist-slug>/<track-slug>.json`        | `--force`                                                    |
-| Final output                         | —                       | `data/output/<artist-slug>.json` (+ `-skipped.json`, `-meta.json`) | rewritten on every run from whatever was cached/fetched      |
+By default, `<data dir>` is `$XDG_CONFIG_HOME/discoprint` (falling back to
+`~/.config/discoprint`) — not the directory you happen to run `discoprint`
+from, so it stays out of the way of whatever project you're in. Override it
+with `--data-dir PATH` or the `DISCOPRINT_DATA_DIR` environment variable.
+
+| Step                                 | Cached?                 | Where                                                                    | Re-fetched by                                                |
+| ------------------------------------ | ----------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Resolve artist name → MusicBrainz ID | No — always a live call | —                                                                          | every run, unconditionally                                   |
+| Fetch discography (albums/tracks)    | Yes                     | `<data dir>/cache/musicbrainz/<artist-slug>.json`                        | `--force`                                                    |
+| Fetch lyrics per song                | Yes                     | `<data dir>/cache/lyrics/<artist-slug>/<track-slug>.json`                | nothing — delete the file yourself to retry a specific track |
+| Classify a song with Jev             | Yes                     | `<data dir>/cache/classification/<artist-slug>/<track-slug>.json`        | `--force`                                                    |
+| Final output                         | —                       | `<data dir>/output/<artist-slug>.json` (+ `-skipped.json`, `-meta.json`) | rewritten on every run from whatever was cached/fetched      |
 
 So `discoprint "Bon Jovi" --limit 10`, once those 10 songs are already
 classified, makes exactly one real network call (the artist lookup) and
@@ -160,12 +166,12 @@ on why batching like this beats one call per question).
 recorded alongside each value as `themeConfidence`, `moodConfidence` and
 `complexityConfidence`. The full row shape per song lives in
 [src/types.ts](src/types.ts) (`SongClassification`) and is what lands in
-`data/output/<artist-slug>.json`.
+`<data dir>/output/<artist-slug>.json`.
 
 ## Visualizing results
 
 ```bash
-discoprint visualize "Bon Jovi"   # reads data/output/<artist-slug>.json
+discoprint visualize "Bon Jovi"   # reads <data dir>/output/<artist-slug>.json
 discoprint visualize              # no artist given -> interactive prompt
 ```
 
@@ -189,7 +195,7 @@ automatically right after classifying:
 - **jev usage footer** — stats from the most recent classify run: song count,
   resolved model (e.g. `jev-1.13.0` — the concrete version behind the
   `jev-latest` alias), input/output tokens, estimated cost, and time spent
-  classifying. Read from `data/output/<artist-slug>-meta.json`, so it shows
+  classifying. Read from `<data dir>/output/<artist-slug>-meta.json`, so it shows
   up even on a `visualize`-only invocation that makes no API calls itself. If
   the last run was fully served from cache, it says so instead of showing
   zeroes.
@@ -277,7 +283,7 @@ The interactive prompt (in the look & feel of
 you're in a real terminal; in CI or a piped/non-TTY invocation with no artist,
 it prints the usage line and exits instead of hanging on input.
 
-Output lands in `data/output/<artist-slug>.json` — one row per track with all
+Output lands in `<data dir>/output/<artist-slug>.json` — one row per track with all
 five classifications, ready to chart (e.g. mood/complexity over time, theme
 distribution per album).
 

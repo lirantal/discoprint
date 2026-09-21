@@ -2,14 +2,12 @@ import { join } from "node:path";
 import { searchArtist, getDiscography } from "./musicbrainz.js";
 import { fetchLyrics } from "./lrclib.js";
 import { classifySong, estimateCostUsd } from "./jev.js";
+import { resolveDataDir } from "./paths.js";
 import { readJsonCache, writeJsonCache, slugify } from "./util.js";
 import type { PipelineEvent } from "./pipeline-events.js";
 import type { ClassificationRunMeta, JevUsage, LyricsResult, SongClassification, Track } from "./types.js";
 
 const CACHED_USAGE: Omit<JevUsage, "model"> = { inputTokens: 0, outputTokens: 0, durationMs: 0 };
-
-const CACHE_DIR = join(process.cwd(), "data", "cache");
-const OUTPUT_DIR = join(process.cwd(), "data", "output");
 
 // Jev has no documented per-key concurrency limit, but each systemOne call is
 // already a single batched request (all 5 questions in one shot — see
@@ -21,6 +19,8 @@ export interface RunOptions {
   limit?: number;
   includeNonAlbums?: boolean;
   force?: boolean;
+  /** Overrides where cache/output files live; see resolveDataDir() in src/paths.ts for the default. */
+  dataDir?: string;
   /**
    * Reports progress as it happens. runPipeline itself never prints or
    * touches the terminal — that's entirely up to whatever's on the other
@@ -58,6 +58,9 @@ async function runPipelineInner(
   emit: (event: PipelineEvent) => void,
 ): Promise<void> {
   const pipelineStartedAt = Date.now();
+  const dataDir = resolveDataDir(options.dataDir);
+  const CACHE_DIR = join(dataDir, "cache");
+  const OUTPUT_DIR = join(dataDir, "output");
   const onRetry = (attempt: number, maxRetries: number, delayMs: number): void =>
     emit({ type: "musicbrainz-retry", attempt, maxRetries, delayMs });
 

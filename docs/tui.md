@@ -169,7 +169,7 @@ script -qec 'stty rows 45 cols 140; pnpm run classify -- "Some Artist" --limit 8
 cat /tmp/run.log | tr -d '\r' | sed 's/\x1b\[[0-9;?]*[a-zA-Z]//g'
 ```
 
-`--force` (or deleting `data/cache/classification/<slug>/`) forces real
+`--force` (or deleting `<data dir>/cache/classification/<slug>/`) forces real
 classify events instead of an instant fully-cached run, if you specifically
 need to see the concurrency/in-flight behavior rather than the
 cached-replay path.

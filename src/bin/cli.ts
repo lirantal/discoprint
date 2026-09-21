@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { join } from "node:path";
 import { describeError, KnownError } from "../errors.js";
+import { resolveDataDir } from "../paths.js";
 import type { PipelineEvent } from "../pipeline-events.js";
 import { runPipeline } from "../pipeline.js";
 import { canPromptInteractively, promptPassword, promptText } from "../prompt.js";
@@ -12,16 +13,19 @@ import { loadVisualizationData } from "../viz/data.js";
 import { renderHeader, renderTerminal } from "../viz/render-terminal.js";
 
 const DEFAULT_LIMIT = 100;
-const OUTPUT_DIR = join(process.cwd(), "data", "output");
 
 const USAGE = `Usage:
-  discoprint [Artist Name] [--limit N] [--include-non-albums] [--force] [--no-visualize] [--verbose]
+  discoprint [Artist Name] [--limit N] [--include-non-albums] [--force] [--no-visualize] [--verbose] [--data-dir PATH]
     Classify an artist's discography with Jev, then show the visualization.
     With no artist and a real terminal, prompts interactively instead.
     In a real terminal, progress renders as a live dashboard; pass --verbose
     for a plain-text log instead (or when output isn't a terminal).
 
-  discoprint visualize [Artist Name]
+    Cache and output files live under $XDG_CONFIG_HOME/discoprint (falling
+    back to ~/.config/discoprint) by default. Override with --data-dir, or
+    the DISCOPRINT_DATA_DIR environment variable.
+
+  discoprint visualize [Artist Name] [--data-dir PATH]
     Re-render the visualization from already-classified data. No network calls.`;
 
 interface ClassifyArgs {
@@ -31,6 +35,7 @@ interface ClassifyArgs {
   force: boolean;
   noVisualize: boolean;
   verbose: boolean;
+  dataDir?: string;
 }
 
 function parseClassifyArgs(argv: string[]): ClassifyArgs {
@@ -62,6 +67,10 @@ function parseClassifyArgs(argv: string[]): ClassifyArgs {
       args.noVisualize = true;
     } else if (arg === "--verbose") {
       args.verbose = true;
+    } else if (arg === "--data-dir") {
+      const raw = argv[++i];
+      if (!raw) throw new KnownError("--data-dir requires a path.");
+      args.dataDir = raw;
     } else {
       positional.push(arg);
     }
@@ -69,6 +78,25 @@ function parseClassifyArgs(argv: string[]): ClassifyArgs {
 
   args.artist = positional.join(" ");
   return args;
+}
+
+/** Pulls --data-dir out of the visualize command's argv, leaving the rest as the artist name. */
+function extractDataDirFlag(argv: string[]): { dataDir?: string; rest: string[] } {
+  const rest: string[] = [];
+  let dataDir: string | undefined;
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "--data-dir") {
+      const raw = argv[++i];
+      if (!raw) throw new KnownError("--data-dir requires a path.");
+      dataDir = raw;
+    } else if (arg !== undefined) {
+      rest.push(arg);
+    }
+  }
+
+  return { dataDir, rest };
 }
 
 async function resolveArtistInteractively(title: string): Promise<string> {
@@ -122,8 +150,8 @@ async function ensureApiKey(): Promise<boolean> {
   return true;
 }
 
-async function printVisualization(artist: string): Promise<void> {
-  const data = await loadVisualizationData(OUTPUT_DIR, slugify(artist), artist);
+async function printVisualization(artist: string, outputDir: string): Promise<void> {
+  const data = await loadVisualizationData(outputDir, slugify(artist), artist);
   console.log();
   for (const line of renderTerminal(data)) {
     console.log(line);
@@ -132,19 +160,21 @@ async function printVisualization(artist: string): Promise<void> {
 }
 
 async function runVisualizeCommand(argv: string[]): Promise<void> {
+  const { dataDir, rest } = extractDataDirFlag(argv);
   const artist =
-    argv.join(" ").trim() ||
+    rest.join(" ").trim() ||
     (await resolveArtistInteractively("Which artist's classification data do you want to visualize?"));
-  await printVisualization(artist);
+  const outputDir = join(resolveDataDir(dataDir), "output");
+  await printVisualization(artist, outputDir);
 }
 
 /** Used by the non-Ink paths (--verbose, non-TTY) — the Ink path shows this itself as part of its own live-to-dashboard transition. */
-async function printFinalOutput(artist: string, showDashboard: boolean): Promise<void> {
+async function printFinalOutput(artist: string, showDashboard: boolean, outputDir: string): Promise<void> {
   if (showDashboard) {
-    await printVisualization(artist);
+    await printVisualization(artist, outputDir);
     return;
   }
-  const data = await loadVisualizationData(OUTPUT_DIR, slugify(artist), artist);
+  const data = await loadVisualizationData(outputDir, slugify(artist), artist);
   console.log();
   console.log(renderHeader(data, colorsEnabled()));
 }
@@ -159,7 +189,7 @@ function logRetriesOnly(event: PipelineEvent): void {
 }
 
 /** Replicates the plain-text progress log the live dashboard replaces, for --verbose and non-TTY output. */
-function createPlainLogger(artistQuery: string): (event: PipelineEvent) => void {
+function createPlainLogger(artistQuery: string, outputDir: string): (event: PipelineEvent) => void {
   return (event) => {
     switch (event.type) {
       case "musicbrainz-retry":
@@ -195,7 +225,7 @@ function createPlainLogger(artistQuery: string): (event: PipelineEvent) => void 
               `~$${meta.estimatedCostUsd.toFixed(4)}, ${(meta.durationMs.classification / 1000).toFixed(1)}s.`,
           );
         }
-        console.log(`Output: data/output/${slugify(meta.artist)}.json`);
+        console.log(`Output: ${join(outputDir, `${slugify(meta.artist)}.json`)}`);
         break;
       }
       default:
@@ -238,19 +268,25 @@ async function runClassifyCommand(argv: string[]): Promise<void> {
   // Separates the prompt Q&A above from the classify run's own output below.
   if (wasInteractive || apiKeyPrompted) console.log();
 
-  const runOptions = { limit: args.limit, includeNonAlbums: args.includeNonAlbums, force: args.force };
+  const runOptions = {
+    limit: args.limit,
+    includeNonAlbums: args.includeNonAlbums,
+    force: args.force,
+    dataDir: args.dataDir,
+  };
   const showDashboard = !args.noVisualize;
+  const outputDir = join(resolveDataDir(args.dataDir), "output");
 
   if (args.verbose) {
-    await runPipeline(args.artist, { ...runOptions, onEvent: createPlainLogger(args.artist) });
-    await printFinalOutput(args.artist, showDashboard);
+    await runPipeline(args.artist, { ...runOptions, onEvent: createPlainLogger(args.artist, outputDir) });
+    await printFinalOutput(args.artist, showDashboard, outputDir);
   } else if (canAnimate()) {
     // The live view settles into this same dashboard itself once done —
     // nothing further to print here (see src/tui/App.tsx).
     await runClassifyUI(args.artist, runOptions, { showDashboard });
   } else {
     await runPipeline(args.artist, { ...runOptions, onEvent: logRetriesOnly });
-    await printFinalOutput(args.artist, showDashboard);
+    await printFinalOutput(args.artist, showDashboard, outputDir);
   }
 }
 

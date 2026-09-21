@@ -1,5 +1,7 @@
+import { join } from "node:path";
 import React from "react";
 import { render } from "ink";
+import { resolveDataDir } from "../paths.js";
 import { runPipeline, type RunOptions } from "../pipeline.js";
 import type { PipelineEvent } from "../pipeline-events.js";
 import { sleep } from "../util.js";
@@ -48,7 +50,10 @@ export async function runClassifyUI(
     return () => listeners.delete(listener);
   };
 
-  const instance = render(React.createElement(App, { artistQuery, subscribe, showDashboard: uiOptions.showDashboard }));
+  const outputDir = join(resolveDataDir(options.dataDir), "output");
+  const instance = render(
+    React.createElement(App, { artistQuery, subscribe, showDashboard: uiOptions.showDashboard, outputDir }),
+  );
 
   try {
     await runPipeline(artistQuery, {

@@ -1,4 +1,3 @@
-import { join } from "node:path";
 import React, { useEffect, useReducer, useState } from "react";
 import { Box, Static, Text, useApp } from "ink";
 import type { PipelineEvent } from "../pipeline-events.js";
@@ -16,7 +15,6 @@ import { useSpotlightSequencer } from "./useSpotlightSequencer.js";
 
 const LEFT_WIDTH = 56;
 const RIGHT_WIDTH = 44;
-const OUTPUT_DIR = join(process.cwd(), "data", "output");
 
 const EXIT_AFTER_STATIC_MS = 150;
 
@@ -26,6 +24,8 @@ export interface AppProps {
   subscribe: (listener: (event: PipelineEvent) => void) => () => void;
   /** Once done, morph into the full dashboard (true) or just a one-line summary (false) — mirrors --no-visualize. */
   showDashboard?: boolean;
+  /** Where the classify run's final output JSON lands — see resolveDataDir() in src/paths.ts. */
+  outputDir: string;
 }
 
 /**
@@ -36,7 +36,7 @@ export interface AppProps {
  * via <Static> so it survives after this component unmounts. Not a live
  * view that vanishes and hands off to a differently-styled plain-text pass.
  */
-export function App({ artistQuery, subscribe, showDashboard = true }: AppProps): React.JSX.Element {
+export function App({ artistQuery, subscribe, showDashboard = true, outputDir }: AppProps): React.JSX.Element {
   const { exit } = useApp();
   const [state, dispatch] = useReducer(reduce, initialState(artistQuery));
   const [finalData, setFinalData] = useState<VisualizationData | null>(null);
@@ -56,7 +56,7 @@ export function App({ artistQuery, subscribe, showDashboard = true }: AppProps):
 
     void (async () => {
       try {
-        const data = await loadVisualizationData(OUTPUT_DIR, slugify(artistName), artistName);
+        const data = await loadVisualizationData(outputDir, slugify(artistName), artistName);
         if (!cancelled) setFinalData(data);
       } catch {
         // Shouldn't normally happen right after a successful run — fall
@@ -68,7 +68,7 @@ export function App({ artistQuery, subscribe, showDashboard = true }: AppProps):
     return () => {
       cancelled = true;
     };
-  }, [state.phase, caughtUp, state.artistName, state.artistQuery]);
+  }, [state.phase, caughtUp, state.artistName, state.artistQuery, outputDir]);
 
   useEffect(() => {
     if (finalData === null && finalError === null) return;

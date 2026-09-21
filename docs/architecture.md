@@ -90,34 +90,39 @@ Ink side (unit tests can't catch Ink layout bugs — see
 
 ## Where things live
 
-| Concern                                  | File(s)                                                      |
-| ---------------------------------------- | ------------------------------------------------------------ |
-| CLI argv parsing, mode selection         | `src/bin/cli.ts`                                             |
-| Interactive text prompts                 | `src/prompt.ts`                                              |
-| TTY/CI detection                         | `src/tty.ts` (shared by `prompt.ts` and the Ink path)        |
-| MusicBrainz client (search, discography) | `src/musicbrainz.ts`                                         |
-| lrclib client (lyrics)                   | `src/lrclib.ts`                                              |
-| Jev/TypeSafe integration                 | `src/jev.ts` — see [jev-integration.md](jev-integration.md)  |
-| Orchestration + caching + event emission | `src/pipeline.ts`                                            |
-| Event contract                           | `src/pipeline-events.ts`                                     |
-| Error → friendly message mapping         | `src/errors.ts`                                              |
-| Disk cache helpers, slugify, etc.        | `src/util.ts`                                                |
-| Renderer-agnostic data shaping           | `src/viz/data.ts`                                            |
-| Plain-text dashboard                     | `src/viz/render-terminal.ts`                                 |
-| Color/theme palette                      | `src/viz/colors.ts`, `src/viz/theme-palette.ts`              |
-| Live Ink view + state machine            | `src/tui/App.tsx`, `src/tui/state.ts` — see [tui.md](tui.md) |
-| Ink final dashboard                      | `src/tui/dashboard/`                                         |
-| Shared number formatting                 | `src/format.ts`                                              |
+| Concern                                      | File(s)                                                      |
+| -------------------------------------------- | ------------------------------------------------------------ |
+| CLI argv parsing, mode selection             | `src/bin/cli.ts`                                             |
+| Interactive text prompts                     | `src/prompt.ts`                                              |
+| TTY/CI detection                             | `src/tty.ts` (shared by `prompt.ts` and the Ink path)        |
+| MusicBrainz client (search, discography)     | `src/musicbrainz.ts`                                         |
+| lrclib client (lyrics)                       | `src/lrclib.ts`                                              |
+| Jev/TypeSafe integration                     | `src/jev.ts` — see [jev-integration.md](jev-integration.md)  |
+| Orchestration + caching + event emission     | `src/pipeline.ts`                                            |
+| Event contract                               | `src/pipeline-events.ts`                                     |
+| Error → friendly message mapping             | `src/errors.ts`                                              |
+| Disk cache helpers, slugify, etc.            | `src/util.ts`                                                |
+| Data dir resolution (XDG default + override) | `src/paths.ts`                                               |
+| Renderer-agnostic data shaping               | `src/viz/data.ts`                                            |
+| Plain-text dashboard                         | `src/viz/render-terminal.ts`                                 |
+| Color/theme palette                          | `src/viz/colors.ts`, `src/viz/theme-palette.ts`              |
+| Live Ink view + state machine                | `src/tui/App.tsx`, `src/tui/state.ts` — see [tui.md](tui.md) |
+| Ink final dashboard                          | `src/tui/dashboard/`                                         |
+| Shared number formatting                     | `src/format.ts`                                              |
 
 ## Data on disk
 
+`<data dir>` defaults to `$XDG_CONFIG_HOME/discoprint` (falling back to
+`~/.config/discoprint`), resolved by `resolveDataDir()` in `src/paths.ts`.
+Override with `--data-dir PATH` or `DISCOPRINT_DATA_DIR`.
+
 ```text
-data/cache/musicbrainz/<artist-slug>.json                       full discography
-data/cache/lyrics/<artist-slug>/<track-slug>.json                per-track lyrics
-data/cache/classification/<artist-slug>/<track-slug>.json        per-track Jev result
-data/output/<artist-slug>.json                                   final SongClassification[]
-data/output/<artist-slug>-skipped.json                           tracks with no lyrics found
-data/output/<artist-slug>-meta.json                               ClassificationRunMeta (last run's stats)
+<data dir>/cache/musicbrainz/<artist-slug>.json                       full discography
+<data dir>/cache/lyrics/<artist-slug>/<track-slug>.json                per-track lyrics
+<data dir>/cache/classification/<artist-slug>/<track-slug>.json        per-track Jev result
+<data dir>/output/<artist-slug>.json                                   final SongClassification[]
+<data dir>/output/<artist-slug>-skipped.json                           tracks with no lyrics found
+<data dir>/output/<artist-slug>-meta.json                               ClassificationRunMeta (last run's stats)
 ```
 
 See [caching.md](caching.md) for exactly when each is read/written/invalidated.
