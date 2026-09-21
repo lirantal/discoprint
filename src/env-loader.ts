@@ -45,7 +45,11 @@ function resolveVarlockCliPath(): string {
  * missing — "couldn't resolve your op() reference" is a very different
  * problem from "you haven't set anything at all", and the pretty banner
  * that would normally explain the difference is exactly what the stdio
- * override above keeps off the terminal.
+ * override above keeps off the terminal. A *root*-level schema error (e.g.
+ * an unpinned plugin version failing to resolve outside a proper project
+ * context) blocks every value in the file rather than just one key, so
+ * it's attributed to every declared key that doesn't already have a more
+ * specific error of its own.
  */
 export function loadEnv(schemaPath: string): Record<string, string> {
   // initVarlockEnv() (below) resets process.env to a snapshot it captured on
@@ -100,7 +104,15 @@ export function loadEnv(schemaPath: string): Record<string, string> {
       if (before[key] && !process.env[key]) process.env[key] = before[key];
     }
 
-    return (parsed?.errors?.configItems as Record<string, string> | undefined) ?? {};
+    const errors = { ...((parsed?.errors?.configItems as Record<string, string> | undefined) ?? {}) };
+    const rootErrors = parsed?.errors?.root as string[] | undefined;
+    if (rootErrors?.length) {
+      const rootMessage = rootErrors.join("; ");
+      for (const key of Object.keys(parsed?.config ?? {})) {
+        errors[key] ??= rootMessage;
+      }
+    }
+    return errors;
   } catch {
     // Malformed output — leave process.env untouched.
     return {};
