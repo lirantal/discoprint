@@ -38,7 +38,8 @@ export function DiscographyPanel({
       <Text bold>DISCOGRAPHY</Text>
       <Box marginTop={1} flexWrap="wrap" width={contentWidth}>
         {stats.map((stat, i) => (
-          <Box key={stat.label} marginRight={i < stats.length - 1 ? 3 : 0}>
+          <Box key={stat.label}>
+            {i > 0 && <Text dimColor> {"·"} </Text>}
             <Text dimColor>{stat.label} </Text>
             <Text bold>{stat.value}</Text>
           </Box>
@@ -46,16 +47,18 @@ export function DiscographyPanel({
       </Box>
       <Box marginTop={1} flexDirection="column">
         <Text dimColor>song grid (chronological, colored by theme)</Text>
-        {rows.map((row, i) => (
-          <Text key={i}>
-            {row.map((song, j) => (
-              <Text key={j} color={themeColor(song.theme).hex}>
-                {"██"}
-                {j < row.length - 1 ? " " : ""}
-              </Text>
-            ))}
-          </Text>
-        ))}
+        <Box marginTop={1} flexDirection="column">
+          {rows.map((row, i) => (
+            <Text key={i}>
+              {row.map((song, j) => (
+                <Text key={j} color={themeColor(song.theme).hex}>
+                  {"██"}
+                  {j < row.length - 1 ? " " : ""}
+                </Text>
+              ))}
+            </Text>
+          ))}
+        </Box>
         {hidden > 0 && <Text dimColor>+ {hidden} more not shown</Text>}
       </Box>
     </Box>

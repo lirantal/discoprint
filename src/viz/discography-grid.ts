@@ -78,9 +78,9 @@ export function gridRowCount(songCount: number, columns: number): number {
 }
 
 // border(2) + title(1) + margin above stats(1) + stats line (may wrap to 2)
-// + margin above grid(1) + grid label(1) — everything in the panel besides
-// the grid rows themselves.
-const PANEL_CHROME_ROWS = 2 + 1 + 1 + 2 + 1 + 1;
+// + margin above grid(1) + grid label(1) + blank line before the grid
+// itself(1) — everything in the panel besides the grid rows themselves.
+const PANEL_CHROME_ROWS = 2 + 1 + 1 + 2 + 1 + 1 + 1;
 
 /** Total row height the whole DiscographyPanel/its plain-text equivalent will take, given the panel's inner content width — for callers that need to reserve vertical space for it up front (see Dashboard.tsx's RESERVED_ROWS). */
 export function discographyPanelRowCount(songCount: number, contentWidth: number): number {

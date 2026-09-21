@@ -210,9 +210,11 @@ function renderDiscographyGrid(data: VisualizationData, width: number, colorEnab
   lines.push(bold("DISCOGRAPHY", colorEnabled));
 
   const stats = computeDiscographyStats(data);
-  lines.push(stats.map((s) => `${dim(`${s.label} `, colorEnabled)}${bold(s.value, colorEnabled)}`).join("   "));
+  const separator = dim(" · ", colorEnabled);
+  lines.push(stats.map((s) => `${dim(`${s.label} `, colorEnabled)}${bold(s.value, colorEnabled)}`).join(separator));
   lines.push("");
   lines.push(dim("song grid (chronological, colored by theme)", colorEnabled));
+  lines.push("");
 
   const columns = gridColumns(width, GRID_CELL_WIDTH);
   const rows = gridRows(data.songs, columns);
@@ -244,8 +246,12 @@ function renderClassificationAverages(data: VisualizationData, colorEnabled: boo
 
   const { hex, label } = themeColor(averages.topTheme.theme);
   const themeLabel = dim("theme".padEnd(STAT_LABEL_WIDTH), colorEnabled);
+  // Padded to STAT_BAR_WIDTH (the longest theme label, "social/political", is
+  // exactly that wide) so the confidence number lands in the same column as
+  // every stat bar's own value below it, instead of drifting with the theme
+  // name's length.
   const confidence = dim(` ${averages.themeConfidence.toFixed(2)}`, colorEnabled);
-  lines.push(`${themeLabel}${fg(label, hex, colorEnabled)}${confidence}`);
+  lines.push(`${themeLabel}${fg(label.padEnd(STAT_BAR_WIDTH), hex, colorEnabled)}${confidence}`);
 
   for (const spec of CLASSIFICATION_STAT_SPECS) {
     const value = averages.values[spec.key];

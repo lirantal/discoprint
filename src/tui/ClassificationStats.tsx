@@ -3,6 +3,7 @@ import { Box, Text } from "ink";
 import { StatBar } from "./StatBar.js";
 import {
   CLASSIFICATION_STAT_SPECS,
+  STAT_BAR_WIDTH,
   STAT_LABEL_WIDTH,
   type ClassificationStatValues,
 } from "../viz/classification-averages.js";
@@ -39,7 +40,8 @@ export function ClassificationStats({
         <Box width={STAT_LABEL_WIDTH}>
           <Text dimColor>theme</Text>
         </Box>
-        <Text color={hex}>{label}</Text>
+        {/* Padded to STAT_BAR_WIDTH (the longest theme label, "social/political", is exactly that wide) so the confidence number lines up with every stat bar's own value below it. */}
+        <Text color={hex}>{label.padEnd(STAT_BAR_WIDTH)}</Text>
         <Text dimColor> {(themeConfidence * progress).toFixed(2)}</Text>
       </Box>
       {CLASSIFICATION_STAT_SPECS.map((spec) => (
