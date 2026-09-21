@@ -99,14 +99,18 @@ classify run, instead of skipping straight to the end for lack of anything
 to visibly wait on.
 
 Once done, that live view settles and morphs into the same dashboard
-(an OVERVIEW panel with the mood arc and theme mix, a SONGS panel with the
-adaptive per-song/per-album table, a usage footer) that `discoprint
-visualize` shows — same content, same boxed visual style as the live
-view's own panels throughout, not a fallback to plain text — committed
-permanently to your scrollback (via Ink's `<Static>`) rather than erased
-when the app exits. `--verbose`, CI, and non-TTY output (e.g. piped to a
-file) skip the live view and print a plain-text progress log followed by
-the same final dashboard instead.
+(an OVERVIEW panel with the mood arc and theme mix, a CLASSIFICATION
+AVERAGE panel, a SONGS panel with the adaptive per-song/per-album table, a
+usage footer) that `discoprint visualize` shows — same content, same boxed
+visual style as the live view's own panels throughout, not a fallback to
+plain text — committed permanently to your scrollback (via Ink's
+`<Static>`) rather than erased when the app exits. That averages panel is
+the spotlight's own five rows — same component, same width, same column on
+screen — only describing every song at once instead of the one that just
+landed, so finishing a run changes what the panel says rather than
+shuffling the layout around it. `--verbose`, CI, and non-TTY output (e.g.
+piped to a file) skip the live view and print a plain-text progress log
+followed by the same final dashboard instead.
 
 ## How it works
 
@@ -130,8 +134,8 @@ from, so it stays out of the way of whatever project you're in. Override it
 with `--data-dir PATH` or the `DISCOPRINT_DATA_DIR` environment variable.
 
 | Step                                 | Cached?                 | Where                                                                    | Re-fetched by                                                |
-| ------------------------------------ | ----------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| Resolve artist name → MusicBrainz ID | No — always a live call | —                                                                          | every run, unconditionally                                   |
+| ------------------------------------ | ----------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| Resolve artist name → MusicBrainz ID | No — always a live call | —                                                                        | every run, unconditionally                                   |
 | Fetch discography (albums/tracks)    | Yes                     | `<data dir>/cache/musicbrainz/<artist-slug>.json`                        | `--force`                                                    |
 | Fetch lyrics per song                | Yes                     | `<data dir>/cache/lyrics/<artist-slug>/<track-slug>.json`                | nothing — delete the file yourself to retry a specific track |
 | Classify a song with Jev             | Yes                     | `<data dir>/cache/classification/<artist-slug>/<track-slug>.json`        | `--force`                                                    |
@@ -185,6 +189,10 @@ automatically right after classifying:
   same character ramp so the gradient is self-explanatory
 - **theme legend + mix bar** — which themes appear (out of the 8 possible),
   their exact share, and the same proportions as a stacked bar
+- **classification average** — the same theme/mood/complexity/explicit/
+  first-person rows the live view reveals per song, averaged across the
+  whole discography: the artist's overall lean, in the same bars you
+  watched fill in one song at a time
 - **heatmap** — adaptive to your terminal size instead of a fixed layout:
   - fits in the terminal → **one row per song**: a theme-colored swatch, the
     title, a mood bar, and a complexity glyph
@@ -277,9 +285,9 @@ to include your own contact info/repo URL — MusicBrainz requires this.
 See [DEVELOPMENT.md](./DEVELOPMENT.md) for running the CLI from source and for
 building/linking `discoprint` as a real global command.
 
-The interactive prompt (in the look & feel of
-[lirantal/boxdown](https://github.com/lirantal/boxdown)'s prompts — see
-[src/prompt.ts](src/prompt.ts)) only kicks in when no artist is given _and_
+The interactive prompt (built on [Ink](https://github.com/vadimdemedes/ink) and
+[@inkjs/ui](https://github.com/vadimdemedes/ink-ui) — see
+[src/prompt.tsx](src/prompt.tsx)) only kicks in when no artist is given _and_
 you're in a real terminal; in CI or a piped/non-TTY invocation with no artist,
 it prints the usage line and exits instead of hanging on input.
 

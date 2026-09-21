@@ -76,6 +76,14 @@ share:
   actually needs. **If you change how a bar/sparkline/glyph is computed in
   one, change it in the other too** — there's no shared function for this
   specific piece, only shared _primitives_ underneath it.
+- **`src/viz/classification-averages.ts`** — which rows the
+  theme/mood/complexity/explicit/first-person readout has, how each is
+  labeled, the scale each is drawn against, and `statBarFill()`. Unlike
+  `bars.ts` above, this one genuinely is shared by all three places that
+  draw those rows (the live `SpotlightPanel`, the dashboard's
+  `AveragesPanel`, and `render-terminal.ts`'s plain-text block) — a row
+  that appeared in one but not another would be visible to the user at
+  the exact moment the live view settles.
 - **`src/format.ts`** — `formatTokenCount()`/`formatDuration()`/`formatUsd()`,
   used by `render-terminal.ts`, `tui/StatsFooter.tsx`, and
   `tui/dashboard/JevUsageFooter.tsx`. This one genuinely is shared (no
@@ -93,8 +101,8 @@ Ink side (unit tests can't catch Ink layout bugs — see
 | Concern                                      | File(s)                                                      |
 | -------------------------------------------- | ------------------------------------------------------------ |
 | CLI argv parsing, mode selection             | `src/bin/cli.ts`                                             |
-| Interactive text prompts                     | `src/prompt.ts`                                              |
-| TTY/CI detection                             | `src/tty.ts` (shared by `prompt.ts` and the Ink path)        |
+| Interactive text prompts (Ink + @inkjs/ui)   | `src/prompt.tsx`                                             |
+| TTY/CI detection                             | `src/tty.ts` (shared by `prompt.tsx` and the Ink path)       |
 | MusicBrainz client (search, discography)     | `src/musicbrainz.ts`                                         |
 | lrclib client (lyrics)                       | `src/lrclib.ts`                                              |
 | Jev/TypeSafe integration                     | `src/jev.ts` — see [jev-integration.md](jev-integration.md)  |
@@ -104,6 +112,8 @@ Ink side (unit tests can't catch Ink layout bugs — see
 | Disk cache helpers, slugify, etc.            | `src/util.ts`                                                |
 | Data dir resolution (XDG default + override) | `src/paths.ts`                                               |
 | Renderer-agnostic data shaping               | `src/viz/data.ts`                                            |
+| Cross-renderer stat rows + bar math          | `src/viz/classification-averages.ts`                         |
+| Shared TUI width/column geometry             | `src/tui/layout.ts` — see [tui.md](tui.md)                   |
 | Plain-text dashboard                         | `src/viz/render-terminal.ts`                                 |
 | Color/theme palette                          | `src/viz/colors.ts`, `src/viz/theme-palette.ts`              |
 | Live Ink view + state machine                | `src/tui/App.tsx`, `src/tui/state.ts` — see [tui.md](tui.md) |

@@ -1,5 +1,5 @@
 // Shared terminal-capability checks used by both the interactive text
-// prompts (prompt.ts) and the live Ink classify UI (tui/) — kept in one
+// prompts (prompt.tsx) and the live Ink classify UI (tui/) — kept in one
 // place so "is this actually an interactive terminal" is answered the same
 // way everywhere.
 
