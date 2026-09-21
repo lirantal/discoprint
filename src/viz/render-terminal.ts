@@ -49,7 +49,10 @@ export function renderTerminal(data: VisualizationData, options: TerminalRenderO
   lines.push("");
   lines.push(...renderLegend(data, width, colorEnabled));
   const distributionBar = renderThemeDistributionBar(data, width, colorEnabled);
-  if (distributionBar) lines.push(distributionBar);
+  if (distributionBar) {
+    lines.push("");
+    lines.push(distributionBar);
+  }
   lines.push("");
 
   const reserved = lines.length + 4; // + the column header row we're about to add

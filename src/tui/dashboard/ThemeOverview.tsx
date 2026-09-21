@@ -37,14 +37,14 @@ export function ThemeOverview({ data, width }: { data: VisualizationData; width:
           })}
         </Box>
       </Box>
-      <Text>
+      <Box marginTop={1}>
         <Text dimColor>{"theme mix".padEnd(LABEL_WIDTH)}</Text>
         {segments.map((segment, i) => (
           <Text key={i} color={segment.hex}>
             {"█".repeat(segment.width)}
           </Text>
         ))}
-      </Text>
+      </Box>
     </Box>
   );
 }
