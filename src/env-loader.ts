@@ -56,7 +56,12 @@ export function loadEnv(schemaPath: string): void {
         "json-full",
         "--compact",
       ],
-      { encoding: "utf8" },
+      // execFileSync/execSync default to *inheriting* the child's stderr
+      // (only stdout is piped unless told otherwise) — without this, a
+      // config error's "🚨 Configuration is currently invalid" banner would
+      // print straight to our terminal even though we handle the failure
+      // gracefully below and never surface that banner ourselves.
+      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
     );
   } catch (err) {
     // A validation error (e.g. a bad value) exits non-zero but still writes
