@@ -4,7 +4,7 @@ import { describeError, KnownError } from "../errors.js";
 import type { PipelineEvent } from "../pipeline-events.js";
 import { runPipeline } from "../pipeline.js";
 import { canPromptInteractively, promptText } from "../prompt.js";
-import { runClassifyUI } from "../tui/runClassifyUI.js";
+import { ALREADY_DISPLAYED, runClassifyUI } from "../tui/runClassifyUI.js";
 import { canAnimate } from "../tty.js";
 import { slugify } from "../util.js";
 import { colorsEnabled } from "../viz/colors.js";
@@ -240,12 +240,17 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  const described = describeError(err);
-  if (described.known) {
-    console.error(described.message);
-  } else {
-    // Anything we didn't anticipate: keep the stack trace so it's debuggable.
-    console.error(err);
+  // The live view (src/tui/runClassifyUI.ts) already painted this on screen
+  // as its own red "✖ ..." line before rethrowing — don't print it again.
+  const alreadyDisplayed = err !== null && typeof err === "object" && (err as Record<PropertyKey, unknown>)[ALREADY_DISPLAYED] === true;
+  if (!alreadyDisplayed) {
+    const described = describeError(err);
+    if (described.known) {
+      console.error(described.message);
+    } else {
+      // Anything we didn't anticipate: keep the stack trace so it's debuggable.
+      console.error(err);
+    }
   }
   process.exit(1);
 });

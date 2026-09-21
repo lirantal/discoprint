@@ -11,6 +11,13 @@ import { App } from "./App.js";
 // never got drawn and leaving nothing to explain why the app just vanished.
 const ERROR_PAINT_MS = 300;
 
+/**
+ * Tags an error rethrown from here as already shown on screen (the red
+ * "✖ ..." line the live view just painted), so the top-level CLI catch
+ * (src/bin/cli.ts) knows not to print the same message a second time.
+ */
+export const ALREADY_DISPLAYED = Symbol("alreadyDisplayedInUI");
+
 export interface RunClassifyUIOptions {
   /** Once done, morph into the full dashboard (default) or just a one-line summary — mirrors --no-visualize. */
   showDashboard?: boolean;
@@ -54,6 +61,9 @@ export async function runClassifyUI(
   } catch (error) {
     await sleep(ERROR_PAINT_MS);
     instance.unmount();
+    if (error !== null && typeof error === "object") {
+      (error as Record<PropertyKey, unknown>)[ALREADY_DISPLAYED] = true;
+    }
     throw error;
   }
 
