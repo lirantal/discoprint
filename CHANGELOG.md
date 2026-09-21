@@ -1,5 +1,11 @@
 # discoprint
 
+## 0.2.3
+
+### Patch Changes
+
+- [`779346c`](https://github.com/lirantal/discoprint/commit/779346cc1903419d2fabab421a6558481ee81f49) Thanks [@lirantal](https://github.com/lirantal)! - fix: cli doesnt properly pass env var
+
 ## 0.2.2
 
 ### Patch Changes
