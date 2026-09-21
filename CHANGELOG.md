@@ -1,5 +1,11 @@
 # discoprint
 
+## 0.2.4
+
+### Patch Changes
+
+- [`e0321c7`](https://github.com/lirantal/discoprint/commit/e0321c712a81133c7c17d40bebbb8eb2a891ec98) Thanks [@lirantal](https://github.com/lirantal)! - fix: further op / 1pass fixes
+
 ## 0.2.3
 
 ### Patch Changes
