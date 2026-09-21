@@ -5,7 +5,7 @@
   "description": "Classify an artist's discography by theme, mood, and lyrical complexity with Jev (TypeSafe AI), and view it as a colorful terminal dashboard.",
   "types": "dist/main.d.mts",
   "bin": {
-    "discoprint": "./dist/bin/cli.cjs"
+    "discoprint": "./dist/bin/cli.mjs"
   },
   "exports": {
     ".": {
@@ -41,8 +41,8 @@
     "lint:markdown:fix": "pnpm run lint:markdown -- --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "tsx --test",
-    "test:coverage": "mkdir -p coverage && tsx --test --experimental-test-coverage --test-coverage-exclude=\"src/**/*.test.ts\" --test-coverage-exclude=\"src/bin/cli.ts\" --test-coverage-exclude=\"src/main.ts\" --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info",
+    "test": "tsx --test 'src/**/*.test.ts'",
+    "test:coverage": "mkdir -p coverage && tsx --test --experimental-test-coverage --test-coverage-exclude=\"src/**/*.test.ts\" --test-coverage-exclude=\"src/bin/cli.ts\" --test-coverage-exclude=\"src/main.ts\" --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info 'src/**/*.test.ts'",
     "prepare": "husky",
     "version": "changeset version",
     "release": "changeset publish",
