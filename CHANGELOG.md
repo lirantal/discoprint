@@ -1,5 +1,11 @@
 # discoprint
 
+## 0.2.2
+
+### Patch Changes
+
+- [`48a768a`](https://github.com/lirantal/discoprint/commit/48a768aca25a15e4471721061087fad9880361ae) Thanks [@lirantal](https://github.com/lirantal)! - fix: add op diagnostics
+
 ## 0.2.1
 
 ### Patch Changes

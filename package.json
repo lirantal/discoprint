@@ -1,6 +1,6 @@
 {
   "name": "discoprint",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "type": "module",
   "description": "Classify an artist's discography by theme, mood, and lyrical complexity with Jev (TypeSafe AI), and view it as a colorful terminal dashboard.",
   "types": "dist/main.d.mts",
