@@ -27,7 +27,8 @@
   "packageManager": "pnpm@10.34.5",
   "files": [
     "dist",
-    "src"
+    "src",
+    ".env.schema"
   ],
   "scripts": {
     "start": "tsx src/bin/cli.ts",
@@ -80,7 +81,6 @@
   "dependencies": {
     "@inkjs/ui": "^2.0.0",
     "@typesafe-ai/sdk": "^0.6.0",
-    "@varlock/1password-plugin": "^2.0.4",
     "ink": "^7.1.1",
     "react": "^19.2.8",
     "varlock": "^1.20.0"

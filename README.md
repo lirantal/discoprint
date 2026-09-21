@@ -66,11 +66,6 @@ or drop it in a `.env` file in the directory you run `discoprint` from:
 TYPESAFE_API_KEY=sk-...
 ```
 
-Note: the `op(op://...)` 1Password-reference syntax mentioned in
-[Local development setup](#local-development-setup) below only works inside a clone of this
-repo — it depends on `.env.schema`'s plugin declaration, which isn't published with the npm
-package. For a global/`npx` install, paste the literal key instead.
-
 Flags for the classify path: `--limit N` (default 100 when prompted interactively,
 unbounded otherwise), `--include-non-albums` (include singles/live albums/compilations,
 default is albums + EPs only), `--force` (re-classify ignoring cached results),
@@ -263,19 +258,15 @@ pnpm run prepare   # sets up git hooks; skipped automatically by `ignore-scripts
 
 Env vars are managed with [Varlock](https://varlock.dev): [.env.schema](.env.schema) declares
 `TYPESAFE_API_KEY` (committed, no secret in it) and a local, gitignored `.env` supplies the
-real value — either a literal key or a 1Password reference, resolved at load time via the
-`op` CLI:
+real value:
 
 ```bash
 # .env (create this yourself, it's gitignored)
-
-# option A: paste your key from https://console.typesafe.ai/keys directly
 TYPESAFE_API_KEY=sk-...
-
-# option B: a 1Password secret reference, resolved on load (requires the `op`
-# CLI installed and the 1Password desktop app running/unlocked for app auth)
-TYPESAFE_API_KEY=op(op://Personal/typesafe/api_key)
 ```
+
+(Or skip the `.env` file and just let the CLI prompt you for it interactively — see
+[API key](#api-key) above.)
 
 Run `pnpm exec varlock load` any time to check what resolves without running the whole pipeline.
 

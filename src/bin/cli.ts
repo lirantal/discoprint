@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-import { join } from "node:path";
+import path, { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { loadEnv } from "../env-loader.js";
 import { describeError, KnownError } from "../errors.js";
 import { resolveDataDir } from "../paths.js";
 import type { PipelineEvent } from "../pipeline-events.js";
@@ -13,6 +15,15 @@ import { loadVisualizationData } from "../viz/data.js";
 import { renderHeader, renderTerminal } from "../viz/render-terminal.js";
 
 const DEFAULT_LIMIT = 100;
+
+/**
+ * The schema ships inside our own package (see package.json's `files`), two
+ * directories above this file in both the dev (`src/bin/cli.ts`) and built
+ * (`dist/bin/cli.mjs`) layouts, so this relative path holds for either one.
+ */
+function bundledSchemaPath(): string {
+  return path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", ".env.schema");
+}
 
 const USAGE = `Usage:
   discoprint [Artist Name] [--limit N] [--include-non-albums] [--force] [--no-visualize] [--verbose] [--data-dir PATH]
@@ -108,6 +119,7 @@ async function resolveArtistInteractively(title: string): Promise<string> {
   const answer = await promptText({
     title,
     summaryLabel: "Artist",
+    printSummary: false,
     validate: (value) => (value === "" ? "Enter an artist name." : undefined),
   });
   if (answer.status === "cancelled") {
@@ -259,9 +271,9 @@ async function runClassifyCommand(argv: string[]): Promise<void> {
     }
   }
 
-  // Loaded lazily and only on this path: `visualize` alone needs no API key.
-  // See .env.schema and https://varlock.dev.
-  await import("varlock/auto-load");
+  // Only needed on this path: `visualize` alone needs no API key.
+  // See .env.schema, src/env-loader.ts, and https://varlock.dev.
+  loadEnv(bundledSchemaPath());
 
   const apiKeyPrompted = await ensureApiKey();
 
