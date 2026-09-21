@@ -61,7 +61,7 @@ export function SongsPanel({
 }): React.JSX.Element {
   const usePerSong = data.songs.length > 0 && data.songs.length <= maxRows;
   const contentWidth = Math.max(20, width - BOX_CHROME_WIDTH);
-  const titleWidth = Math.max(10, contentWidth - (usePerSong ? 18 : 38));
+  const titleWidth = Math.max(10, contentWidth - (usePerSong ? 18 : 40));
 
   return (
     <Box borderStyle="round" borderColor="gray" flexDirection="column" width={width} paddingX={1}>

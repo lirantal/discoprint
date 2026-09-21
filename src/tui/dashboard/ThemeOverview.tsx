@@ -22,17 +22,17 @@ export function ThemeOverview({ data, width }: { data: VisualizationData; width:
     <Box flexDirection="column">
       <Box>
         <Text dimColor>{label}</Text>
-        <Box flexWrap="wrap" width={Math.max(20, width - LABEL_WIDTH)}>
+        <Box flexDirection="column" width={Math.max(20, width - LABEL_WIDTH)}>
           {data.themeDistribution.map(({ theme, percentage }) => {
             const { hex, label: themeLabel } = themeColor(theme);
             return (
-              <Box key={theme} marginRight={3}>
+              <Text key={theme}>
                 <Text color={hex}>██</Text>
                 <Text dimColor>
                   {" "}
                   {themeLabel} {Math.round(percentage)}%
                 </Text>
-              </Box>
+              </Text>
             );
           })}
         </Box>
