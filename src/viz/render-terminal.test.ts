@@ -48,7 +48,7 @@ function makeSongs(count: number, songsPerAlbum = 10): SongClassification[] {
 test("renderTerminal", async (t) => {
   await t.test("renders one row per song when everything fits within the terminal height", () => {
     const data = buildVisualizationData("Test Artist", makeSongs(8), 0);
-    const lines = renderTerminal(data, { width: 80, height: 30, colorEnabled: false });
+    const lines = renderTerminal(data, { width: 80, height: 40, colorEnabled: false });
     // Per-song rows lead with the theme swatch, then the year, then the track title.
     const trackLines = lines.filter((l) => /^██ \d{4} Track \d+/.test(l));
     assert.equal(trackLines.length, 8);
@@ -122,6 +122,35 @@ test("renderTerminal", async (t) => {
     assert.ok(legendLine);
     assert.ok(mixLine);
     assert.equal(legendLine.indexOf("██"), mixLine.indexOf("█"));
+  });
+
+  await t.test("renders the classification average block with one row per classified attribute", () => {
+    const data = buildVisualizationData("Test Artist", makeSongs(9), 0);
+    const lines = renderTerminal(data, { width: 80, height: 40, colorEnabled: false });
+
+    const titleIndex = lines.findIndex((l) => l.startsWith("CLASSIFICATION AVERAGE"));
+    assert.ok(titleIndex >= 0);
+    assert.match(lines[titleIndex]!, /across 9 songs · 1 album$/);
+
+    const rows = lines.slice(titleIndex + 1, titleIndex + 6);
+    assert.deepEqual(
+      rows.map((l) => l.slice(0, 12).trimEnd()),
+      ["theme", "mood", "complexity", "explicit", "1st person"],
+    );
+    // Every bar row starts its bar at the same column, and is a full
+    // STAT_BAR_WIDTH of filled + empty cells regardless of its value.
+    for (const row of rows.slice(1)) {
+      assert.match(row, /^.{12}[█░]{16} \d\.\d{2}$/u);
+    }
+  });
+
+  await t.test("omits the classification average block when nothing is classified", () => {
+    const data = buildVisualizationData("Test Artist", [], 0);
+    const lines = renderTerminal(data, { width: 80, height: 24, colorEnabled: false });
+    assert.equal(
+      lines.find((l) => l.startsWith("CLASSIFICATION AVERAGE")),
+      undefined,
+    );
   });
 
   await t.test("omits the jev usage footer when there's no run metadata", () => {

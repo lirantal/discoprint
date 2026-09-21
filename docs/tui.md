@@ -21,6 +21,13 @@ src/tui/SongLog.tsx                live-view left panel: scrolling log of
                                   completed songs (capped, "N earlier").
 src/tui/SpotlightPanel.tsx         live-view right panel: the currently
                                   spotlighted song's bars + in-flight list.
+src/tui/ClassificationStats.tsx    the five-row theme/mood/complexity/
+                                  explicit/first-person readout itself,
+                                  shared by the live spotlight and the
+                                  settled averages panel.
+src/tui/StatBar.tsx                one "label ████░░░░ 1.23" row.
+src/tui/layout.ts                  the width/column geometry both the live
+                                  view and the dashboard resolve from.
 src/tui/useSpotlightSequencer.ts   the reveal-animation pacing logic. See
                                   below — this file has the sharpest edges.
 src/tui/Legend.tsx, StatsFooter.tsx  live-view chrome (unboxed, like Header).
@@ -132,6 +139,32 @@ are different bugs.
 `state.phase === "done" && caughtUp`, after loading the same
 `VisualizationData` `discoprint visualize` reads.
 
+### The right-hand column must not move
+
+The live view and the dashboard both render a wide left column plus a
+fixed-width panel on its right: `SongLog` + `SpotlightPanel` while
+classifying, `OverviewPanel` + `AveragesPanel` once settled. Those two
+right-hand panels are deliberately **the same component underneath**
+(`ClassificationStats.tsx`) drawing the same five rows — one song's values
+as it animates in, the whole discography's averages once the run is done.
+
+For that to read as one panel settling rather than two panels swapping,
+both views have to resolve to the _same_ geometry, so they both take it
+from `src/tui/layout.ts` (`useTerminalWidth()` + `splitColumns()`) instead
+of from local width constants. Hardcode a width in either view and the
+right-hand panel jumps sideways and resizes on the single frame the user
+is actually watching. `splitColumns()` also owns the narrow-terminal
+fallback: below `SIDE_PANEL_WIDTH * 2 + COLUMN_GAP` it returns
+`side: null` and both views stack their panels vertically instead, rather
+than squeezing the main column down to nothing.
+
+The same five rows also exist in `render-terminal.ts` as a plain-text
+block. There they cost real vertical space (the Ink panel gets its height
+for free beside `OVERVIEW`), which comes straight out of the SONGS
+table's row budget — that's why the plain version puts its title and
+subtitle on one line, and why `RESERVED_ROWS`/the reserved-row math in
+both renderers had to grow when it was added.
+
 It's committed via Ink's `<Static>` component, not returned as a normal
 render. This matters: Ink erases its _normal_ dynamic output when the app
 unmounts (that's what makes the live view's boxes disappear cleanly
@@ -146,9 +179,9 @@ after the process exits has to go through `<Static>`; anything transient
 paddingX={1}>`. That border + padding consumes exactly 4 columns (1 border
 
 - 1 padding on each side) that are _not_ available to the content inside.
-  Both panels compute `contentWidth = width - BOX_CHROME_WIDTH` (with
-  `BOX_CHROME_WIDTH = 4`) before doing any title-truncation or bar-width
-  math using the box's own `width` prop. The bug this fixes: pass the full
+  Every such panel computes `contentWidth = width - BOX_CHROME_WIDTH`
+  (4, exported from `src/tui/layout.ts`) before doing any
+  title-truncation or bar-width math using the box's own `width` prop. The bug this fixes: pass the full
   box `width` straight into a row's width calculation, and every row
   overflows by exactly 4 characters and wraps onto a second line — found
   only by running the app in a real terminal, not by any test. **If you add

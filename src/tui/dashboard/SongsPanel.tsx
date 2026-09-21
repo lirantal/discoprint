@@ -1,6 +1,7 @@
 import React from "react";
 import { Box, Text } from "ink";
 import { albumStrip, complexityGlyph, formatYear, moodBar } from "./bars.js";
+import { BOX_CHROME_WIDTH } from "../layout.js";
 import { themeColor } from "../../viz/theme-palette.js";
 import type { AlbumGroup, VisualizationData } from "../../viz/data.js";
 import type { SongClassification } from "../../types.js";
@@ -8,10 +9,6 @@ import type { SongClassification } from "../../types.js";
 const MOOD_MAX = 4;
 const MOOD_BAR_WIDTH = 6;
 const ALBUM_STRIP_WIDTH = 20;
-// 1 char of border + 1 char of paddingX on each side — the gap between the
-// box's own `width` prop (its outer size) and how much a row can actually
-// use before Ink wraps it onto a second line.
-const BOX_CHROME_WIDTH = 4;
 
 function truncate(text: string, width: number): string {
   if (text.length <= width) return text.padEnd(width);

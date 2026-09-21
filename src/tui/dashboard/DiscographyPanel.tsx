@@ -7,12 +7,9 @@ import {
   gridRows,
   hiddenSongCount,
 } from "../../viz/discography-grid.js";
+import { BOX_CHROME_WIDTH } from "../layout.js";
 import { themeColor } from "../../viz/theme-palette.js";
 import type { VisualizationData } from "../../viz/data.js";
-
-// 1 char of border + 1 char of paddingX on each side, matching the other
-// dashboard panels' own BOX_CHROME_WIDTH.
-const BOX_CHROME_WIDTH = 4;
 
 /**
  * A GitHub-contributions-style grid: one swatch per classified song in

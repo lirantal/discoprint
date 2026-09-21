@@ -9,12 +9,10 @@ import { Header } from "./Header.js";
 import { Legend } from "./Legend.js";
 import { SongLog } from "./SongLog.js";
 import { SpotlightPanel } from "./SpotlightPanel.js";
+import { COLUMN_GAP, splitColumns, useTerminalWidth } from "./layout.js";
 import { initialState, reduce } from "./state.js";
 import { StatsFooter } from "./StatsFooter.js";
 import { useSpotlightSequencer } from "./useSpotlightSequencer.js";
-
-const LEFT_WIDTH = 56;
-const RIGHT_WIDTH = 44;
 
 const EXIT_AFTER_STATIC_MS = 150;
 
@@ -42,6 +40,10 @@ export function App({ artistQuery, subscribe, showDashboard = true, outputDir }:
   const [finalData, setFinalData] = useState<VisualizationData | null>(null);
   const [finalError, setFinalError] = useState<string | null>(null);
   const { spotlight, caughtUp } = useSpotlightSequencer(state.log, state.totalToClassify);
+  // Same geometry the final Dashboard resolves to, from the same helpers —
+  // so the right-hand panel keeps its width and its column when the live
+  // spotlight is replaced by the settled averages panel.
+  const { main: logWidth, side: spotlightWidth } = splitColumns(useTerminalWidth());
 
   useEffect(() => subscribe(dispatch), [subscribe]);
 
@@ -93,12 +95,23 @@ export function App({ artistQuery, subscribe, showDashboard = true, outputDir }:
   return (
     <Box flexDirection="column">
       <Header state={state} />
-      <Box marginTop={1}>
-        <Box marginRight={1}>
-          <SongLog log={state.log} width={LEFT_WIDTH} />
+      {spotlightWidth === null ? (
+        <>
+          <Box marginTop={1}>
+            <SongLog log={state.log} width={logWidth} />
+          </Box>
+          <Box marginTop={1}>
+            <SpotlightPanel state={state} spotlight={spotlight} width={logWidth} />
+          </Box>
+        </>
+      ) : (
+        <Box marginTop={1}>
+          <Box marginRight={COLUMN_GAP}>
+            <SongLog log={state.log} width={logWidth} />
+          </Box>
+          <SpotlightPanel state={state} spotlight={spotlight} width={spotlightWidth} />
         </Box>
-        <SpotlightPanel state={state} spotlight={spotlight} width={RIGHT_WIDTH} />
-      </Box>
+      )}
       <Legend log={state.log} />
       <StatsFooter state={state} />
       {state.phase === "error" && state.errorMessage && (

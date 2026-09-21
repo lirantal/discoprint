@@ -1,3 +1,12 @@
+import {
+  AVERAGES_PANEL_TITLE,
+  averagesSubtitle,
+  CLASSIFICATION_STAT_SPECS,
+  computeClassificationAverages,
+  STAT_BAR_WIDTH,
+  STAT_LABEL_WIDTH,
+  statBarFill,
+} from "./classification-averages.js";
 import { bold, clamp, colorsEnabled, dim, fg, moodGradientHex } from "./colors.js";
 import { resample, type AlbumGroup, type VisualizationData } from "./data.js";
 import {
@@ -59,6 +68,12 @@ export function renderTerminal(data: VisualizationData, options: TerminalRenderO
   if (distributionBar) {
     lines.push("");
     lines.push(distributionBar);
+  }
+
+  const averages = renderClassificationAverages(data, colorEnabled);
+  if (averages.length > 0) {
+    lines.push("");
+    lines.push(...averages);
   }
   lines.push("");
 
@@ -207,6 +222,39 @@ function renderDiscographyGrid(data: VisualizationData, width: number, colorEnab
 
   const hidden = hiddenSongCount(data.songs.length, columns);
   if (hidden > 0) lines.push(dim(`+ ${hidden} more not shown`, colorEnabled));
+
+  return lines;
+}
+
+/**
+ * The CLASSIFICATION AVERAGE block: the same five rows the animated view
+ * shows for a single song as it lands, averaged across the whole
+ * discography. Same content and same column geometry as the Ink dashboard
+ * AveragesPanel.tsx (both read the shared specs and bar math in
+ * classification-averages.ts), just baked into ANSI strings.
+ */
+function renderClassificationAverages(data: VisualizationData, colorEnabled: boolean): string[] {
+  const averages = computeClassificationAverages(data);
+  if (!averages) return [];
+
+  // Title and subtitle share a line here, unlike the Ink panel: that panel
+  // gets its vertical space for free beside OVERVIEW, whereas every line
+  // spent here comes straight out of the SONGS table's row budget below.
+  const lines = [`${bold(AVERAGES_PANEL_TITLE, colorEnabled)}  ${dim(averagesSubtitle(averages), colorEnabled)}`];
+
+  const { hex, label } = themeColor(averages.topTheme.theme);
+  const themeLabel = dim("theme".padEnd(STAT_LABEL_WIDTH), colorEnabled);
+  const confidence = dim(` ${averages.themeConfidence.toFixed(2)}`, colorEnabled);
+  lines.push(`${themeLabel}${fg(label, hex, colorEnabled)}${confidence}`);
+
+  for (const spec of CLASSIFICATION_STAT_SPECS) {
+    const value = averages.values[spec.key];
+    const filled = statBarFill(value, spec.max);
+    const bar = `${fg("█".repeat(filled), spec.hex, colorEnabled)}${dim("░".repeat(STAT_BAR_WIDTH - filled), colorEnabled)}`;
+    lines.push(
+      `${dim(spec.label.padEnd(STAT_LABEL_WIDTH), colorEnabled)}${bar}${dim(` ${value.toFixed(2)}`, colorEnabled)}`,
+    );
+  }
 
   return lines;
 }
