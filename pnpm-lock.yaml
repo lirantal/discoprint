@@ -14,6 +14,9 @@ importers:
       '@typesafe-ai/sdk':
         specifier: ^0.6.0
         version: 0.6.0
+      '@varlock/1password-plugin':
+        specifier: ^2.0.4
+        version: 2.0.4(varlock@1.20.0)
       ink:
         specifier: ^7.1.1
         version: 7.1.1(@types/react@19.2.18)(react@19.2.8)
@@ -660,6 +663,12 @@ packages:
   '@typescript-eslint/visitor-keys@8.67.0':
     resolution: {integrity: sha512-fkv8dHRDqfGtTHuJeebdrQ7cX6Ad4WAS00rgHh9UGvMycF1mjBfsxry1XsLIFhWZ6Judlh6UdzK+TYlbpCXgnA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@varlock/1password-plugin@2.0.4':
+    resolution: {integrity: sha512-/+oM5v4NnN6KBxeJAAVCZt9UvHgLq1LxvLEgTM/CnuCjPBXQtvFCaB1qoYU/FgabebsIsHonjLV9HAorKQYLgA==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      varlock: ^1.17.1
 
   '@varlock/native-helper-darwin@1.20.0':
     resolution: {integrity: sha512-+AidNOGpJ63+CifPsg0wCPLaCwOunoHCazWIPekTnujzk4HTVB1iowLsWBOaAfLq6TDeSKSis2gk7M9oSlcKNA==}
@@ -2462,6 +2471,10 @@ snapshots:
     dependencies:
       '@typescript-eslint/types': 8.67.0
       eslint-visitor-keys: 5.0.1
+
+  '@varlock/1password-plugin@2.0.4(varlock@1.20.0)':
+    dependencies:
+      varlock: 1.20.0
 
   '@varlock/native-helper-darwin@1.20.0':
     optional: true

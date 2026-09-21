@@ -41,21 +41,21 @@ function resolveVarlockCliPath(): string {
  * cli.ts rather than crashing the whole CLI on something recoverable.
  */
 export function loadEnv(schemaPath: string): void {
+  const cwd = process.cwd();
+  // Inside a clone of this repo, the bundled schema *is* cwd's own
+  // .env.schema — passing both as separate --path entries would load that
+  // one file twice (once directly, once via cwd's directory auto-discovery)
+  // and the 1Password plugin's @initOp then fails to initialize a second
+  // time ("Instance with id \"_default\" already initialized"). A single
+  // directory path covers the schema plus cwd's .env/.env.local the same
+  // way plain `varlock/auto-load` auto-discovery would.
+  const paths = path.dirname(schemaPath) === cwd ? [cwd] : [schemaPath, cwd];
+
   let stdout: string;
   try {
     stdout = execFileSync(
       process.execPath,
-      [
-        resolveVarlockCliPath(),
-        "load",
-        "--path",
-        schemaPath,
-        "--path",
-        process.cwd(),
-        "--format",
-        "json-full",
-        "--compact",
-      ],
+      [resolveVarlockCliPath(), "load", ...paths.flatMap((p) => ["--path", p]), "--format", "json-full", "--compact"],
       // execFileSync/execSync default to *inheriting* the child's stderr
       // (only stdout is piped unless told otherwise) — without this, a
       // config error's "🚨 Configuration is currently invalid" banner would
