@@ -46,7 +46,7 @@ test("promptText", async (t) => {
     const output = fakeTty();
     const out = collect(output);
 
-    const pending = promptText({ title: "Which artist or band?", summaryLabel: "Artist", input, output });
+    const pending = promptText({ title: "Which artist or band?", summaryLabel: "Artist", input, output, env: {} });
     input.write("Radiohead\n");
     const result = await pending;
 
@@ -66,6 +66,7 @@ test("promptText", async (t) => {
       validate: (value) => (value === "" ? "Enter an artist name." : undefined),
       input,
       output,
+      env: {},
     });
 
     input.write("\n"); // empty -> validation error, should re-prompt
@@ -89,6 +90,7 @@ test("promptText", async (t) => {
         Number.isInteger(Number(value)) && Number(value) > 0 ? undefined : "Enter a positive whole number.",
       input,
       output,
+      env: {},
     });
     input.write("\n");
 
@@ -107,6 +109,7 @@ test("promptText", async (t) => {
       printSummary: false,
       input,
       output,
+      env: {},
     });
     input.write("5\n");
     const result = await pending;

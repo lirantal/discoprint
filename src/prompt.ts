@@ -61,6 +61,7 @@ export interface TextPromptOptions {
   validate?: (value: string) => string | undefined;
   input?: PromptInput;
   output?: PromptOutput;
+  env?: NodeJS.ProcessEnv;
 }
 
 // Buffers stray "line" events that arrive after a readline interface has
@@ -106,8 +107,9 @@ function askLine(input: PromptInput, output: PromptOutput, question: string): Pr
 export async function promptText(options: TextPromptOptions): Promise<TextPromptResult> {
   const input = options.input ?? process.stdin;
   const output = options.output ?? process.stdout;
+  const env = options.env ?? process.env;
 
-  if (!canPromptInteractively(input, output)) {
+  if (!canPromptInteractively(input, output, env)) {
     return { status: "cancelled" };
   }
 
