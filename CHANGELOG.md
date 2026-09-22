@@ -1,5 +1,11 @@
 # discoprint
 
+## 0.2.5
+
+### Patch Changes
+
+- [`3038369`](https://github.com/lirantal/discoprint/commit/3038369560d22715f3e88874e493b75c225351fc) Thanks [@lirantal](https://github.com/lirantal)! - fix: support for op service token detection and fallback
+
 ## 0.2.4
 
 ### Patch Changes
