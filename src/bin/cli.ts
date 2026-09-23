@@ -7,6 +7,7 @@ import { resolveDataDir } from "../paths.js";
 import type { PipelineEvent } from "../pipeline-events.js";
 import { runPipeline } from "../pipeline.js";
 import { canPromptInteractively, promptPassword, promptText } from "../prompt.js";
+import { installTerminalRestoreGuard } from "../terminal-restore.js";
 import { ALREADY_DISPLAYED, runClassifyUI } from "../tui/runClassifyUI.js";
 import { canAnimate } from "../tty.js";
 import { slugify } from "../util.js";
@@ -309,6 +310,8 @@ async function runClassifyCommand(argv: string[]): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  installTerminalRestoreGuard();
+
   // Some package-manager script runners (observed with pnpm + tsx) forward a
   // literal "--" through to the script instead of stripping it, corrupting
   // whatever comes after (e.g. `pnpm run classify -- "Bon Jovi"`). Drop any
