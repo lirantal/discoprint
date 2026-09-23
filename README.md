@@ -10,6 +10,8 @@
   Classify an artist's discography by theme, mood, and lyrical complexity with Jev (TypeSafe AI), and view it as a colorful terminal dashboard.
 </p>
 
+<img width="1640" height="1157" alt="SCR-20260923-iwuq" src="https://github.com/user-attachments/assets/4902e4a4-cc84-4180-b61f-bed6128ef5ce" />
+
 <p align="center">
   <a href="https://www.npmjs.com/package/discoprint"><img src="https://badgen.net/npm/v/discoprint" alt="npm version"/></a>
   <a href="https://www.npmjs.com/package/discoprint"><img src="https://badgen.net/npm/license/discoprint" alt="license"/></a>
@@ -46,6 +48,12 @@ discoprint "Bon Jovi" --no-visualize
 # re-render the dashboard from already-classified data, no network calls
 discoprint visualize "Bon Jovi"
 ```
+
+## Demo
+
+
+
+https://github.com/user-attachments/assets/34cc8af4-c58e-48e4-9b8f-de66e1fe69b5
 
 ### API key
 
