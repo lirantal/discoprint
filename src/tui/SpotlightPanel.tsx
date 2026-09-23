@@ -2,8 +2,14 @@ import React from "react";
 import { Box, Text } from "ink";
 import { ClassificationStats } from "./ClassificationStats.js";
 import { useSpinnerFrame } from "./hooks.js";
+import { BOX_CHROME_WIDTH } from "./layout.js";
 import type { AppState } from "./state.js";
 import type { Spotlight as SpotlightData } from "./useSpotlightSequencer.js";
+
+function truncate(text: string, width: number): string {
+  if (text.length <= width) return text;
+  return `${text.slice(0, Math.max(1, width - 1))}…`;
+}
 
 /** Right panel: the most recently classified song's stats revealing in, plus a compact list of what's still in flight. */
 export function SpotlightPanel({
@@ -19,6 +25,7 @@ export function SpotlightPanel({
   const spinner = useSpinnerFrame(inFlightEntries.length > 0);
 
   const title = spotlight ? "JUST CLASSIFIED" : state.phase === "classifying" ? "CLASSIFYING" : "RESULT";
+  const contentWidth = Math.max(10, width - BOX_CHROME_WIDTH);
 
   return (
     <Box borderStyle="round" borderColor="cyan" flexDirection="column" width={width} paddingX={1}>
@@ -26,7 +33,7 @@ export function SpotlightPanel({
 
       {spotlight ? (
         <>
-          <Text>{spotlight.song.title}</Text>
+          <Text>{truncate(spotlight.song.title, contentWidth)}</Text>
           <Box marginTop={1}>
             <ClassificationStats
               theme={spotlight.song.classification.theme}
