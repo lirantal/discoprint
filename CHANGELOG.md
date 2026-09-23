@@ -1,5 +1,11 @@
 # discoprint
 
+## 0.2.6
+
+### Patch Changes
+
+- [`030c6f5`](https://github.com/lirantal/discoprint/commit/030c6f5061996169d9e614b95c4bd83c1c34543e) Thanks [@lirantal](https://github.com/lirantal)! - fix: layout shift
+
 ## 0.2.5
 
 ### Patch Changes
