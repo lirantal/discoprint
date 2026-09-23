@@ -110,8 +110,9 @@ to visibly wait on.
 
 Once done, that live view settles and morphs into the same dashboard
 (an OVERVIEW panel with the mood arc and theme mix, a CLASSIFICATION
-AVERAGE panel, a SONGS panel with the adaptive per-song/per-album table, a
-usage footer) that `discoprint visualize` shows — same content, same boxed
+AVERAGE panel, a DISCOGRAPHY grid, a SONGS panel with the adaptive
+per-song/per-album table, a usage footer) that `discoprint visualize`
+shows — same content, same boxed
 visual style as the live view's own panels throughout, not a fallback to
 plain text — committed permanently to your scrollback (via Ink's
 `<Static>`) rather than erased when the app exits. That averages panel is
@@ -203,6 +204,10 @@ automatically right after classifying:
   first-person rows the live view reveals per song, averaged across the
   whole discography: the artist's overall lean, in the same bars you
   watched fill in one song at a time
+- **discography grid** — a GitHub-contributions-style grid, one swatch per
+  classified song in chronological order and colored by theme, wrapping to
+  fill the terminal width, plus a row of at-a-glance stats (songs, albums,
+  years active, top theme, avg mood, busiest album)
 - **heatmap** — adaptive to your terminal size instead of a fixed layout:
   - fits in the terminal → **one row per song**: a theme-colored swatch, the
     title, a mood bar, and a complexity glyph
@@ -246,13 +251,15 @@ everything else in this project.
 Once a run is done, [src/tui/App.tsx](src/tui/App.tsx) loads the exact same
 `VisualizationData` `render-terminal.ts` does, but hands it to
 [src/tui/dashboard/](src/tui/dashboard) — an Ink re-implementation of the
-same dashboard (mood arc, theme legend/mix bar, adaptive song/album table,
-usage footer), styled like the rest of the live view (the same rounded-box
-`SONGS` panel, the same colors) rather than falling back to plain
-`console.log` text once the animation stops. The two renderers share their
-_data and color logic_ — `resample()`/`average()` from `viz/data.ts`,
+same dashboard (mood arc, theme legend/mix bar, discography grid, adaptive
+song/album table, usage footer), styled like the rest of the live view (the
+same rounded-box `SONGS` panel, the same colors) rather than falling back to
+plain `console.log` text once the animation stops. The two renderers share
+their _data and color logic_ — `resample()`/`average()` from `viz/data.ts`,
 `moodGradientHex()` from `viz/colors.ts`, `themeColor()` from
-`viz/theme-palette.ts`, and the bar/glyph math in
+`viz/theme-palette.ts`, the discography stats/layout math in
+[src/viz/discography-grid.ts](src/viz/discography-grid.ts), and the
+bar/glyph math in
 [src/tui/dashboard/bars.ts](src/tui/dashboard/bars.ts) (a pure, unit-tested
 port of `render-terminal.ts`'s own bar math, returning `{ char, color }`
 data instead of ANSI-embedded strings) — but each renders it through its
@@ -345,6 +352,7 @@ pnpm run test:coverage # same, plus a line/branch/function coverage report
 - [src/tui/dashboard/bars.test.ts](src/tui/dashboard/bars.test.ts) — the final dashboard's bar/glyph/sparkline math, tested as plain functions returning `{ char, color }` data, no Ink rendering involved
 - [src/format.test.ts](src/format.test.ts) — token/duration/cost formatting shared by every renderer
 - [src/viz/colors.test.ts](src/viz/colors.test.ts), [src/viz/data.test.ts](src/viz/data.test.ts) — color interpolation and the pure data-shaping/aggregation logic
+- [src/viz/discography-grid.test.ts](src/viz/discography-grid.test.ts) — discography grid layout math (columns/rows/hidden count) and the at-a-glance stats
 - [src/viz/render-terminal.test.ts](src/viz/render-terminal.test.ts) — adaptive per-song/per-album view selection, column alignment, and edge cases (0 songs, 1 song, very long titles)
 
 `test:coverage` writes an LCOV report to `coverage/lcov.info` (gitignored) — pipe it into
