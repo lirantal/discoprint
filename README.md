@@ -269,6 +269,13 @@ describes. `--verbose`/non-TTY output still ends with the plain-text
 dashboard, same as before — the Ink one only replaces what the live view
 morphs into.
 
+## Demo
+
+Weird Al Yancovich results for classifying song lyrics with Jev (TypeSafe AI's System One model):
+
+<img width="2668" height="1630" alt="HS6lbTLXoAANUin" src="https://github.com/user-attachments/assets/a093bb9e-5139-4dd4-bc04-b83a778f7ed7" />
+
+
 ## Local development setup
 
 ```bash
