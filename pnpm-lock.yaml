@@ -76,8 +76,8 @@ importers:
         specifier: ^8.59.0
         version: 8.70.1(eslint@10.11.0)(typescript@5.9.3)
       validate-conventional-commit:
-        specifier: ^1.0.4
-        version: 1.0.4
+        specifier: ^2.0.0
+        version: 2.0.0
 
 packages:
 
@@ -2070,9 +2070,9 @@ packages:
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
 
-  validate-conventional-commit@1.0.4:
-    resolution: {integrity: sha512-RkkjpHE6qIF+BfujcFWTOAYE1Xj/Jz9oBMtlncLoqQVi5nGY/OwGgXjYolo8CNhH8xu6q7zSvciH0amTWkBvZg==}
-    engines: {node: '>=16.0.0'}
+  validate-conventional-commit@2.0.0:
+    resolution: {integrity: sha512-G78oL9Gzi7vmvXw73dU4XGYLnPie+i4nMYxvq0bypsKkONPQ6XwR1mD+POabU3SvjVhZejueYe+I6kQcrJxgMA==}
+    engines: {node: '>=20.0.0'}
     hasBin: true
 
   varlock@1.20.0:
@@ -4060,7 +4060,7 @@ snapshots:
     dependencies:
       punycode: 2.3.1
 
-  validate-conventional-commit@1.0.4: {}
+  validate-conventional-commit@2.0.0: {}
 
   varlock@1.20.0:
     optionalDependencies:
