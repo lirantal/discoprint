@@ -2,7 +2,21 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildVisualizationData } from "./data.js";
 import { renderTerminal } from "./render-terminal.js";
-import type { SongClassification } from "../types.js";
+import type { ClassificationRunMeta, SongClassification } from "../types.js";
+
+function meta(overrides: Partial<ClassificationRunMeta> = {}): ClassificationRunMeta {
+  return {
+    artist: "Test Artist",
+    generatedAt: "2026-01-01T00:00:00.000Z",
+    model: "jev-1.13.0",
+    songsClassifiedThisRun: 3,
+    totalSongsInOutput: 3,
+    tokens: { input: 3800, output: 240 },
+    estimatedCostUsd: 0.00015960000000000001,
+    durationMs: { classification: 4200, total: 9100 },
+    ...overrides,
+  };
+}
 
 function stripAnsi(text: string): string {
   return text.replace(/\[[0-9;]*m/g, "");
@@ -34,7 +48,7 @@ function makeSongs(count: number, songsPerAlbum = 10): SongClassification[] {
 test("renderTerminal", async (t) => {
   await t.test("renders one row per song when everything fits within the terminal height", () => {
     const data = buildVisualizationData("Test Artist", makeSongs(8), 0);
-    const lines = renderTerminal(data, { width: 80, height: 30, colorEnabled: false });
+    const lines = renderTerminal(data, { width: 80, height: 40, colorEnabled: false });
     // Per-song rows lead with the theme swatch, then the year, then the track title.
     const trackLines = lines.filter((l) => /^██ \d{4} Track \d+/.test(l));
     assert.equal(trackLines.length, 8);
@@ -108,6 +122,66 @@ test("renderTerminal", async (t) => {
     assert.ok(legendLine);
     assert.ok(mixLine);
     assert.equal(legendLine.indexOf("██"), mixLine.indexOf("█"));
+  });
+
+  await t.test("renders the classification average block with one row per classified attribute", () => {
+    const data = buildVisualizationData("Test Artist", makeSongs(9), 0);
+    const lines = renderTerminal(data, { width: 80, height: 40, colorEnabled: false });
+
+    const titleIndex = lines.findIndex((l) => l.startsWith("CLASSIFICATION AVERAGE"));
+    assert.ok(titleIndex >= 0);
+    assert.match(lines[titleIndex]!, /across 9 songs · 1 album$/);
+
+    const rows = lines.slice(titleIndex + 1, titleIndex + 6);
+    assert.deepEqual(
+      rows.map((l) => l.slice(0, 12).trimEnd()),
+      ["theme", "mood", "complexity", "explicit", "1st person"],
+    );
+    // Every bar row starts its bar at the same column, and is a full
+    // STAT_BAR_WIDTH of filled + empty cells regardless of its value.
+    for (const row of rows.slice(1)) {
+      assert.match(row, /^.{12}[█░]{16} \d\.\d{2}$/u);
+    }
+  });
+
+  await t.test("omits the classification average block when nothing is classified", () => {
+    const data = buildVisualizationData("Test Artist", [], 0);
+    const lines = renderTerminal(data, { width: 80, height: 24, colorEnabled: false });
+    assert.equal(
+      lines.find((l) => l.startsWith("CLASSIFICATION AVERAGE")),
+      undefined,
+    );
+  });
+
+  await t.test("omits the jev usage footer when there's no run metadata", () => {
+    const data = buildVisualizationData("Test Artist", makeSongs(3), 0);
+    const lines = renderTerminal(data, { width: 80, height: 24, colorEnabled: false });
+    assert.ok(!lines.some((l) => l.includes("jev usage")));
+  });
+
+  await t.test("shows a fully-cached message when the last run classified nothing new", () => {
+    const data = buildVisualizationData(
+      "Test Artist",
+      makeSongs(3),
+      0,
+      meta({ songsClassifiedThisRun: 0, model: null, tokens: { input: 0, output: 0 }, estimatedCostUsd: 0 }),
+    );
+    const lines = renderTerminal(data, { width: 80, height: 24, colorEnabled: false });
+    const usageLine = lines.find((l) => l.startsWith("jev usage"));
+    assert.ok(usageLine);
+    assert.match(usageLine, /fully cached/);
+  });
+
+  await t.test("shows songs/model/tokens/cost/duration when the last run did real classification work", () => {
+    const data = buildVisualizationData("Test Artist", makeSongs(3), 0, meta());
+    const lines = renderTerminal(data, { width: 80, height: 24, colorEnabled: false });
+    const usageLine = lines.find((l) => l.startsWith("jev usage"));
+    assert.ok(usageLine);
+    assert.match(usageLine, /3 songs classified/);
+    assert.match(usageLine, /jev-1\.13\.0/);
+    assert.match(usageLine, /3\.8K in \/ 240 out tok/);
+    assert.match(usageLine, /\$0\.0002/); // rounds up from 0.0001596
+    assert.match(usageLine, /4\.2s classifying/);
   });
 
   await t.test("the mood arc renders a visible mark even for the saddest possible songs (regression)", () => {

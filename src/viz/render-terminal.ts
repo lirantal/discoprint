@@ -1,6 +1,23 @@
+import {
+  AVERAGES_PANEL_TITLE,
+  averagesSubtitle,
+  CLASSIFICATION_STAT_SPECS,
+  computeClassificationAverages,
+  STAT_BAR_WIDTH,
+  STAT_LABEL_WIDTH,
+  statBarFill,
+} from "./classification-averages.js";
 import { bold, clamp, colorsEnabled, dim, fg, moodGradientHex } from "./colors.js";
 import { resample, type AlbumGroup, type VisualizationData } from "./data.js";
+import {
+  computeDiscographyStats,
+  GRID_CELL_WIDTH,
+  gridColumns,
+  gridRows,
+  hiddenSongCount,
+} from "./discography-grid.js";
 import { THEME_PALETTE, themeColor } from "./theme-palette.js";
+import { formatDuration, formatTokenCount, formatUsd } from "../format.js";
 import type { SongClassification } from "../types.js";
 
 export interface TerminalRenderOptions {
@@ -25,6 +42,16 @@ const TOTAL_POSSIBLE_THEMES = Object.keys(THEME_PALETTE).length;
 const LEGEND_LABEL_WIDTH =
   Math.max("theme mix".length, `themes (${TOTAL_POSSIBLE_THEMES}/${TOTAL_POSSIBLE_THEMES})`.length) + 1;
 
+/** The `◆  Artist  — N songs classified · year–year` summary line. Exported so callers that skip the full dashboard (e.g. `--no-visualize`) can still print a one-line result. */
+export function renderHeader(data: VisualizationData, colorEnabled: boolean): string {
+  const parts = [`${data.songs.length} songs classified`];
+  if (data.skippedCount > 0) parts.push(`${data.skippedCount} skipped`);
+  const { from, to } = data.dateRange;
+  if (from) parts.push(from === to ? year(from) : `${year(from)}–${year(to)}`);
+
+  return `${fg("◆", "#22d3ee", colorEnabled)}  ${bold(data.artist, colorEnabled)}  ${dim(`— ${parts.join(" · ")}`, colorEnabled)}`;
+}
+
 /** Renders a shaped VisualizationData into printable lines. Pure — no I/O, no process.stdout access. */
 export function renderTerminal(data: VisualizationData, options: TerminalRenderOptions = {}): string[] {
   const width = Math.max(40, options.width ?? process.stdout.columns ?? 80);
@@ -38,8 +65,23 @@ export function renderTerminal(data: VisualizationData, options: TerminalRenderO
   lines.push("");
   lines.push(...renderLegend(data, width, colorEnabled));
   const distributionBar = renderThemeDistributionBar(data, width, colorEnabled);
-  if (distributionBar) lines.push(distributionBar);
+  if (distributionBar) {
+    lines.push("");
+    lines.push(distributionBar);
+  }
+
+  const averages = renderClassificationAverages(data, colorEnabled);
+  if (averages.length > 0) {
+    lines.push("");
+    lines.push(...averages);
+  }
   lines.push("");
+
+  const discography = renderDiscographyGrid(data, width, colorEnabled);
+  if (discography.length > 0) {
+    lines.push(...discography);
+    lines.push("");
+  }
 
   const reserved = lines.length + 4; // + the column header row we're about to add
   const availableRows = Math.max(3, height - reserved);
@@ -54,6 +96,12 @@ export function renderTerminal(data: VisualizationData, options: TerminalRenderO
     for (const album of data.albums) lines.push(renderAlbumRow(album, width, colorEnabled));
   }
 
+  const usageStats = renderUsageStats(data, colorEnabled);
+  if (usageStats.length > 0) {
+    lines.push("");
+    lines.push(...usageStats);
+  }
+
   return lines;
 }
 
@@ -64,15 +112,6 @@ function year(date: string | undefined): string {
 function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text.padEnd(maxLength);
   return `${text.slice(0, Math.max(1, maxLength - 1))}…`;
-}
-
-function renderHeader(data: VisualizationData, colorEnabled: boolean): string {
-  const parts = [`${data.songs.length} songs classified`];
-  if (data.skippedCount > 0) parts.push(`${data.skippedCount} skipped`);
-  const { from, to } = data.dateRange;
-  if (from) parts.push(from === to ? year(from) : `${year(from)}–${year(to)}`);
-
-  return `${fg("◆", "#22d3ee", colorEnabled)}  ${bold(data.artist, colorEnabled)}  ${dim(`— ${parts.join(" · ")}`, colorEnabled)}`;
 }
 
 function renderMoodArc(data: VisualizationData, width: number, colorEnabled: boolean): string {
@@ -105,7 +144,7 @@ function renderMoodArc(data: VisualizationData, width: number, colorEnabled: boo
 function renderMoodScale(colorEnabled: boolean): string {
   const steps = SPARK_CHARS.split("");
   const ramp = steps.map((char, i) => fg(char, moodGradientHex(i / (steps.length - 1)), colorEnabled)).join("");
-  return `${dim("sad", colorEnabled)} ${ramp} ${dim("upbeat", colorEnabled)}`;
+  return `${dim("( sad", colorEnabled)} ${ramp} ${dim("upbeat)", colorEnabled)}`;
 }
 
 function renderLegend(data: VisualizationData, width: number, colorEnabled: boolean): string[] {
@@ -155,6 +194,75 @@ function renderThemeDistributionBar(data: VisualizationData, width: number, colo
 
   const bar = segments.map((s) => fg("█".repeat(s.width), s.hex, colorEnabled)).join("");
   return `${dim("theme mix".padEnd(LEGEND_LABEL_WIDTH), colorEnabled)}${bar}`;
+}
+
+/**
+ * The DISCOGRAPHY section: a row of at-a-glance stats, then a
+ * GitHub-contributions-style grid — one swatch per classified song in
+ * chronological order, colored by theme, wrapping to fill `width`. Same
+ * content/layout logic as the Ink dashboard's DiscographyPanel.tsx, just
+ * baked into ANSI strings instead of Ink components.
+ */
+function renderDiscographyGrid(data: VisualizationData, width: number, colorEnabled: boolean): string[] {
+  if (data.songs.length === 0) return [];
+
+  const lines: string[] = [];
+  lines.push(bold("DISCOGRAPHY", colorEnabled));
+
+  const stats = computeDiscographyStats(data);
+  const separator = dim(" · ", colorEnabled);
+  lines.push(stats.map((s) => `${dim(`${s.label} `, colorEnabled)}${bold(s.value, colorEnabled)}`).join(separator));
+  lines.push("");
+  lines.push(dim("song grid (chronological, colored by theme)", colorEnabled));
+  lines.push("");
+
+  const columns = gridColumns(width, GRID_CELL_WIDTH);
+  const rows = gridRows(data.songs, columns);
+  for (const row of rows) {
+    lines.push(row.map((song) => fg("██", themeColor(song.theme).hex, colorEnabled)).join(" "));
+  }
+
+  const hidden = hiddenSongCount(data.songs.length, columns);
+  if (hidden > 0) lines.push(dim(`+ ${hidden} more not shown`, colorEnabled));
+
+  return lines;
+}
+
+/**
+ * The CLASSIFICATION AVERAGE block: the same five rows the animated view
+ * shows for a single song as it lands, averaged across the whole
+ * discography. Same content and same column geometry as the Ink dashboard
+ * AveragesPanel.tsx (both read the shared specs and bar math in
+ * classification-averages.ts), just baked into ANSI strings.
+ */
+function renderClassificationAverages(data: VisualizationData, colorEnabled: boolean): string[] {
+  const averages = computeClassificationAverages(data);
+  if (!averages) return [];
+
+  // Title and subtitle share a line here, unlike the Ink panel: that panel
+  // gets its vertical space for free beside OVERVIEW, whereas every line
+  // spent here comes straight out of the SONGS table's row budget below.
+  const lines = [`${bold(AVERAGES_PANEL_TITLE, colorEnabled)}  ${dim(averagesSubtitle(averages), colorEnabled)}`];
+
+  const { hex, label } = themeColor(averages.topTheme.theme);
+  const themeLabel = dim("theme".padEnd(STAT_LABEL_WIDTH), colorEnabled);
+  // Padded to STAT_BAR_WIDTH (the longest theme label, "social/political", is
+  // exactly that wide) so the confidence number lands in the same column as
+  // every stat bar's own value below it, instead of drifting with the theme
+  // name's length.
+  const confidence = dim(` ${averages.themeConfidence.toFixed(2)}`, colorEnabled);
+  lines.push(`${themeLabel}${fg(label.padEnd(STAT_BAR_WIDTH), hex, colorEnabled)}${confidence}`);
+
+  for (const spec of CLASSIFICATION_STAT_SPECS) {
+    const value = averages.values[spec.key];
+    const filled = statBarFill(value, spec.max);
+    const bar = `${fg("█".repeat(filled), spec.hex, colorEnabled)}${dim("░".repeat(STAT_BAR_WIDTH - filled), colorEnabled)}`;
+    lines.push(
+      `${dim(spec.label.padEnd(STAT_LABEL_WIDTH), colorEnabled)}${bar}${dim(` ${value.toFixed(2)}`, colorEnabled)}`,
+    );
+  }
+
+  return lines;
 }
 
 function renderBar(value: number, max: number, width: number, colorHex: string, colorEnabled: boolean): string {
@@ -249,4 +357,29 @@ function renderAlbumRow(album: AlbumGroup, width: number, colorEnabled: boolean)
 /** Length ignoring ANSI escape sequences — needed to wrap/pad colored strings correctly. */
 function visibleLength(text: string): number {
   return text.replace(/\[[0-9;]*m/g, "").length;
+}
+
+/** A footer summarizing Jev usage/cost/timing from the most recent classify run, if any. */
+function renderUsageStats(data: VisualizationData, colorEnabled: boolean): string[] {
+  const meta = data.lastRunMeta;
+  if (!meta) return [];
+
+  const label = dim("jev usage  ", colorEnabled);
+
+  if (meta.songsClassifiedThisRun === 0) {
+    return [`${label}${dim("fully cached — no new Jev calls on the last run", colorEnabled)}`];
+  }
+
+  const summary = [
+    `${meta.songsClassifiedThisRun} song${meta.songsClassifiedThisRun === 1 ? "" : "s"} classified`,
+    meta.model ?? "unknown model",
+    `${formatTokenCount(meta.tokens.input)} in / ${formatTokenCount(meta.tokens.output)} out tok`,
+  ].join(" · ");
+
+  const cost = fg(`~${formatUsd(meta.estimatedCostUsd)}`, "#22c55e", colorEnabled);
+  const timing = `${formatDuration(meta.durationMs.classification)} classifying`;
+
+  return [
+    `${label}${dim(summary, colorEnabled)}${dim(" · ", colorEnabled)}${cost}${dim(` · ${timing}`, colorEnabled)}`,
+  ];
 }

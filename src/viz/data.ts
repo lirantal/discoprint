@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { KnownError } from "../errors.js";
-import type { SongClassification } from "../types.js";
+import type { ClassificationRunMeta, SongClassification } from "../types.js";
 
 export interface AlbumGroup {
   album: string;
@@ -32,6 +32,8 @@ export interface VisualizationData {
   themeDistribution: ThemeDistributionEntry[];
   skippedCount: number;
   dateRange: { from?: string; to?: string };
+  /** Jev usage/cost/timing from the most recent classify run, if that metadata exists on disk. */
+  lastRunMeta?: ClassificationRunMeta;
 }
 
 export function average(values: number[]): number {
@@ -57,6 +59,7 @@ export function buildVisualizationData(
   artist: string,
   songs: SongClassification[],
   skippedCount: number,
+  lastRunMeta?: ClassificationRunMeta,
 ): VisualizationData {
   const sorted = [...songs].sort((a, b) => (a.releaseDate ?? "9999").localeCompare(b.releaseDate ?? "9999"));
 
@@ -93,6 +96,7 @@ export function buildVisualizationData(
     themeDistribution,
     skippedCount,
     dateRange: { from: dates[0], to: dates[dates.length - 1] },
+    lastRunMeta,
   };
 }
 
@@ -107,7 +111,7 @@ export async function loadVisualizationData(
     songs = JSON.parse(await readFile(outputPath, "utf-8")) as SongClassification[];
   } catch (cause) {
     throw new KnownError(
-      `No classification data found at ${outputPath}. Run \`npm run classify -- "${artist}"\` first.`,
+      `No classification data found at ${outputPath}. Run \`pnpm run classify -- "${artist}"\` first.`,
       { cause },
     );
   }
@@ -120,5 +124,14 @@ export async function loadVisualizationData(
     // No skipped-tracks file, or it's unreadable — not fatal, just show 0.
   }
 
-  return buildVisualizationData(artist, songs, skippedCount);
+  let lastRunMeta: ClassificationRunMeta | undefined;
+  try {
+    lastRunMeta = JSON.parse(
+      await readFile(join(outputDir, `${artistSlug}-meta.json`), "utf-8"),
+    ) as ClassificationRunMeta;
+  } catch {
+    // No meta file (e.g. data from before this feature existed) — not fatal, just omit the stats.
+  }
+
+  return buildVisualizationData(artist, songs, skippedCount, lastRunMeta);
 }

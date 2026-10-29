@@ -4,7 +4,21 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { average, buildVisualizationData, loadVisualizationData, resample } from "./data.js";
-import type { SongClassification } from "../types.js";
+import type { ClassificationRunMeta, SongClassification } from "../types.js";
+
+function meta(overrides: Partial<ClassificationRunMeta> = {}): ClassificationRunMeta {
+  return {
+    artist: "Test Artist",
+    generatedAt: "2026-01-01T00:00:00.000Z",
+    model: "jev-1.13.0",
+    songsClassifiedThisRun: 3,
+    totalSongsInOutput: 3,
+    tokens: { input: 900, output: 60 },
+    estimatedCostUsd: 0.0000378,
+    durationMs: { classification: 1200, total: 4000 },
+    ...overrides,
+  };
+}
 
 function song(overrides: Partial<SongClassification>): SongClassification {
   return {
@@ -120,6 +134,14 @@ test("buildVisualizationData", async (t) => {
     assert.equal(data.songs.length, 1);
     assert.deepEqual(data.dateRange, { from: undefined, to: undefined });
   });
+
+  await t.test("passes through lastRunMeta when provided, omits it when not", () => {
+    const withMeta = buildVisualizationData("Artist", [song({})], 0, meta());
+    assert.deepEqual(withMeta.lastRunMeta, meta());
+
+    const withoutMeta = buildVisualizationData("Artist", [song({})], 0);
+    assert.equal(withoutMeta.lastRunMeta, undefined);
+  });
 });
 
 test("loadVisualizationData", async (t) => {
@@ -145,10 +167,25 @@ test("loadVisualizationData", async (t) => {
     assert.equal(data.skippedCount, 0);
   });
 
+  await t.test("loads lastRunMeta when the meta file exists", async () => {
+    await writeFile(join(dir, "with-meta.json"), JSON.stringify([song({})]));
+    await writeFile(join(dir, "with-meta-meta.json"), JSON.stringify(meta({ songsClassifiedThisRun: 5 })));
+
+    const data = await loadVisualizationData(dir, "with-meta", "With Meta");
+    assert.equal(data.lastRunMeta?.songsClassifiedThisRun, 5);
+  });
+
+  await t.test("lastRunMeta is undefined when the meta file is absent", async () => {
+    await writeFile(join(dir, "no-meta.json"), JSON.stringify([song({})]));
+
+    const data = await loadVisualizationData(dir, "no-meta", "No Meta");
+    assert.equal(data.lastRunMeta, undefined);
+  });
+
   await t.test("throws a KnownError when the output file doesn't exist", async () => {
     await assert.rejects(
       () => loadVisualizationData(dir, "nonexistent", "Nonexistent"),
-      (err: unknown) => err instanceof Error && err.name === "KnownError" && /Run `npm run classify/.test(err.message),
+      (err: unknown) => err instanceof Error && err.name === "KnownError" && /Run `pnpm run classify/.test(err.message),
     );
   });
 });
