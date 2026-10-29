@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { classifySong } from "./jev.js";
+import { classifySong, estimateCostUsd } from "./jev.js";
 
 process.env.TYPESAFE_API_KEY = "test-key";
 
@@ -62,7 +62,7 @@ test("classifySong", async (t) => {
     assert.equal(capturedBody.questions.explicit.type, "noul");
 
     // Response mapping: answers land in the right SongClassification fields.
-    assert.deepEqual(result, {
+    assert.deepEqual(result.classification, {
       artist: "Radiohead",
       track: "Airbag",
       album: "OK Computer",
@@ -77,6 +77,12 @@ test("classifySong", async (t) => {
       explicit: 0.02,
       firstPerson: 0.95,
     });
+
+    // Usage: model + token counts come straight from the response, duration is measured.
+    assert.equal(result.usage.model, "jev-latest");
+    assert.equal(result.usage.inputTokens, 100);
+    assert.equal(result.usage.outputTokens, 10);
+    assert.ok(result.usage.durationMs >= 0);
   });
 
   await t.test("propagates an API error instead of swallowing it", async () => {
@@ -93,5 +99,16 @@ test("classifySong", async (t) => {
         lyricsSource: "lrclib-get",
       }),
     );
+  });
+});
+
+test("estimateCostUsd", async (t) => {
+  await t.test("charges only for input tokens, at $0.042 per million", () => {
+    assert.equal(estimateCostUsd(1_000_000), 0.042);
+    assert.equal(estimateCostUsd(0), 0);
+  });
+
+  await t.test("scales linearly", () => {
+    assert.equal(estimateCostUsd(2_000_000), estimateCostUsd(1_000_000) * 2);
   });
 });

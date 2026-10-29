@@ -26,3 +26,7 @@ npm-debug.log*
 .cache
 .eslintcache
 .node_repl_history
+
+
+# APM dependencies
+apm_modules/

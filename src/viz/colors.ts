@@ -1,5 +1,6 @@
 // Minimal 24-bit ("truecolor") ANSI helpers. No chalk/picocolors dependency —
-// same philosophy as src/prompt.ts.
+// this is the one place in the codebase that still hand-rolls ANSI codes
+// directly, for the plain (non-Ink) terminal visualization renderer.
 export interface Rgb {
   r: number;
   g: number;
