@@ -16,7 +16,7 @@ importers:
         version: 0.6.0
       '@varlock/1password-plugin':
         specifier: ^2.0.4
-        version: 2.0.4(varlock@1.20.0)
+        version: 2.0.4(varlock@1.21.1)
       ink:
         specifier: ^7.1.1
         version: 7.1.1(@types/react@19.3.0)(react@19.3.0)
@@ -25,7 +25,7 @@ importers:
         version: 19.3.0
       varlock:
         specifier: ^1.20.0
-        version: 1.20.0
+        version: 1.21.1
     devDependencies:
       '@changesets/changelog-github':
         specifier: ^1.0.1
@@ -735,22 +735,22 @@ packages:
     peerDependencies:
       varlock: ^1.17.1
 
-  '@varlock/native-helper-darwin@1.20.0':
-    resolution: {integrity: sha512-+AidNOGpJ63+CifPsg0wCPLaCwOunoHCazWIPekTnujzk4HTVB1iowLsWBOaAfLq6TDeSKSis2gk7M9oSlcKNA==}
+  '@varlock/native-helper-darwin@1.21.1':
+    resolution: {integrity: sha512-hh7lB6cO/qEVJTgPY5ebVicwnbM7ROkIWjOkZ+k6PYWaoyj+UrUTymF5nHkqzg0TaZ+EA5z/eboFoZhrbsOHGw==}
     os: [darwin]
 
-  '@varlock/native-helper-linux-arm64@1.20.0':
-    resolution: {integrity: sha512-W7dxyWkEuzFf+qOKNHqs5j0QOy0vW/zXrusS9i0Zt4l4oP6u0hwWqS8xV2ww6KiG2SrV+Dvrn/23fh4kTE/cCA==}
+  '@varlock/native-helper-linux-arm64@1.21.1':
+    resolution: {integrity: sha512-ppN2UIrJKDVALBzZwVXzIokAch8j2eyeABEHZn5LkMS3auXBVdVVkqN9QPIe7/Ii91LIV5mwWMeVJrV1paTI5Q==}
     cpu: [arm64]
     os: [linux]
 
-  '@varlock/native-helper-linux-x64@1.20.0':
-    resolution: {integrity: sha512-6N6w87D4ByujoVRz0hxFH/VXNOmr9rXnp+WDdzxHa2FZirmy31wW3LoiPjIXrmriNZ9p2C5JseECEDBKsnwQcg==}
+  '@varlock/native-helper-linux-x64@1.21.1':
+    resolution: {integrity: sha512-jAbIyjBJ0gyyg4C95P7KXufXtCR/K624Gib/6CUasO6dBnYVJ0SpbK2Ym41jgDYlJuYgkLKJuUHSrGNcAflzcA==}
     cpu: [x64]
     os: [linux]
 
-  '@varlock/native-helper-win32-x64@1.20.0':
-    resolution: {integrity: sha512-mDH00lx2h+dWmbARTnfmRu321SuZigKslUdX7dAn0/7+psShiFCx6QEWLjjyZgDPSCGVNbIM3JArC40vCTXJjw==}
+  '@varlock/native-helper-win32-x64@1.21.1':
+    resolution: {integrity: sha512-HaEry0HnJPY+opHiNUgQvpQ1yFZMMIVmpLZExTinQXu9Im81aovoR1By6LQsx1H4qFDyeEqcq2glV74WzHCNyA==}
     os: [win32, linux]
 
   '@yuku-codegen/binding-android-arm64@0.10.2':
@@ -1804,8 +1804,8 @@ packages:
     engines: {node: '>=20.0.0'}
     hasBin: true
 
-  varlock@1.20.0:
-    resolution: {integrity: sha512-MA5idJKpaQ36d90OxY4gWwWzdVKle6YUq3OI58o/j5ImCz3m8DFmonGbvixyFRhmm7sQeGcNyo8hBHc3kVLNqw==}
+  varlock@1.21.1:
+    resolution: {integrity: sha512-Qfy8/3DBEDlPcfQ8gR/Qs7YA5ERmUT2g0GqMPwz/uL00UqP8/heAAUGrwoBO8H6l4tWjPG35Ews680I78Ci0Aw==}
     engines: {bun: '>=1.3.3', node: '>=22.3.0'}
     hasBin: true
 
@@ -2421,20 +2421,20 @@ snapshots:
       '@typescript-eslint/types': 8.70.1
       eslint-visitor-keys: 5.0.1
 
-  '@varlock/1password-plugin@2.0.4(varlock@1.20.0)':
+  '@varlock/1password-plugin@2.0.4(varlock@1.21.1)':
     dependencies:
-      varlock: 1.20.0
+      varlock: 1.21.1
 
-  '@varlock/native-helper-darwin@1.20.0':
+  '@varlock/native-helper-darwin@1.21.1':
     optional: true
 
-  '@varlock/native-helper-linux-arm64@1.20.0':
+  '@varlock/native-helper-linux-arm64@1.21.1':
     optional: true
 
-  '@varlock/native-helper-linux-x64@1.20.0':
+  '@varlock/native-helper-linux-x64@1.21.1':
     optional: true
 
-  '@varlock/native-helper-win32-x64@1.20.0':
+  '@varlock/native-helper-win32-x64@1.21.1':
     optional: true
 
   '@yuku-codegen/binding-android-arm64@0.10.2':
@@ -3479,12 +3479,12 @@ snapshots:
 
   validate-conventional-commit@2.0.0: {}
 
-  varlock@1.20.0:
+  varlock@1.21.1:
     optionalDependencies:
-      '@varlock/native-helper-darwin': 1.20.0
-      '@varlock/native-helper-linux-arm64': 1.20.0
-      '@varlock/native-helper-linux-x64': 1.20.0
-      '@varlock/native-helper-win32-x64': 1.20.0
+      '@varlock/native-helper-darwin': 1.21.1
+      '@varlock/native-helper-linux-arm64': 1.21.1
+      '@varlock/native-helper-linux-x64': 1.21.1
+      '@varlock/native-helper-win32-x64': 1.21.1
 
   verkit@0.4.1: {}
 
