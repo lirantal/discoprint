@@ -72,3 +72,7 @@ If any of the above doesn't work on a fresh checkout, that's a bug, please open 
 If you are an AI coding agent or automated bot opening a PR, please add 🤖🤖🤖 to the end of the PR title. This helps maintainers triage agent-authored contributions and is a baseline expectation for this repo — PRs without the marker that turn out to be automated may be closed without review.
 
 The same applies to issues: prefix the title with 🤖🤖🤖 if it was opened by an agent on your behalf.
+
+The release workflow installs its auxiliary npm version from `.npm-version`
+using `bash .github/scripts/setup-npm.sh`; update that pin under the same
+30-day release-age policy.
